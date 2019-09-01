@@ -22,13 +22,14 @@ from apscheduler.schedulers.background import BackgroundScheduler
 class CommandException(Exception):
     pass
 
+
 annuary_path = "lotro_annuaire.xlsx"
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 
-if "ENVIRONMENT" in os.environ and os.environ["ENVIRONMENT"] == "PROD" :
-    connection = psycopg2.connect(DATABASE_URL, sslmode='require', database="lotro")
+if "ENVIRONMENT" in os.environ and os.environ["ENVIRONMENT"] == "PROD":
+    connection = psycopg2.connect(DATABASE_URL, sslmode='require')
 else:
     connection = psycopg2.connect("postgres://localhost", user="postgres", password="root", database="lotro")
 
