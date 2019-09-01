@@ -5,29 +5,16 @@
 # https://discordapp.com/oauth2/authorize?client_id=614569601287585841&scope=bot
 #
 
-#
-# Legolas métier nom:t [ajouter/retirer] job:t
-# ====> attention pas plsu de 3 métiers !
-# Legolas métier nom:t: [ajouter/retirer] job:t tier:t [or/bronze]
-#
-# database : json => pandas
-#
-# Commandes
-#
-# Legolas
-#   twitter
-#   annuaire
-#       personnage
-#           nom niveau classe trait
-
 import discord
 import os
 import datetime
 import psycopg2
+import json
+import codecs
 
 from Utils import Configuration, \
     Characters, Jobs, Reputations, \
-    Calendar, Twitters, Persistence_Utils
+    Calendar, Twitters, Persistence_Utils, Annuary
 
 import traceback
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -37,7 +24,7 @@ class CommandException(Exception):
     pass
 
 
-annuaire_path = "lotro_annuaire.xlsx"
+annuary_path = "lotro_annuaire.xlsx"
 local = True
 
 DATABASE_URL = os.environ["DATABASE_URL"]
@@ -96,12 +83,22 @@ def ProcessSentences(text):
     return result
 
 
+def get_json(path):
+    with open(path, "rb") as stream:
+        return json.load(stream)
+
+
 @client.event
 async def on_member_join(member):
     guild_id = member.guild.id
     # if guild_id in new_member_channels:
     #    new_channel = client.get_channel(new_member_channels[guild_id])
     #    await new_channel.send("Bienvenue " + member.mention + " !")
+
+
+help_json = get_json("help.json")
+print("fichier d'aide")
+print(help_json)
 
 
 @client.event
@@ -130,170 +127,15 @@ async def on_message(message):
             is_admin = message.author.name == message.guild.owner.name or persistentConfiguration.is_admin(
                 message.author, message.guild.id)
             guild_id = message.guild.id
+
             if words[1] == "aide":
-                is_embed = True
-                embed = discord.Embed(title="Commandes d'aide disponibles", color=0x37f23c)
+                entry = "/".join(words[1:])
+                if entry in help_json:
+                    is_embed = True
+                    embed = discord.Embed(title="Commandes d'aide disponibles", color=0x37f23c)
+                    for title in help_json[entry]:
+                        embed.add_field(name=title, value=help_json[entry][title], inline=False)
 
-                if len(words) == 3:
-                    if words[2] == "twitter":
-                        title = "Legolas twitter list\n"
-                        embed.add_field(name=title, value="Lister les comptes et les salons liés")
-
-                        title = "Legolas twitter <twitter_user> [ajouter/retirer] #<salon> [#<salon> ...]\n"
-                        embed.add_field(name=title,
-                                        value="Ajouter ou retirer un salon pour la diffusion d'un compte twitter")
-
-                        title = "Legolas twitter filtre <twitter_user> [ajouter/retirer]"
-                        title += "\"texte\" #<salon> [#<salon> ...]\n"
-                        embed.add_field(name=title,
-                                        value="Ajouter ou retirer un filtre pour un salon pour un compte twitter")
-                    elif words[2] == "annuaire":
-                        title = "Legolas annuaire excel\n"
-                        embed.add_field(name=title, value="Recevoir en Message Privé l'annuaire sous format excel",
-                                        inline=False)
-
-                        title = "Legolas aide annuaire personnage\n"
-                        embed.add_field(name=title, value="Liste des commandes de l'annuaire pour les personnages",
-                                        inline=False)
-
-                        title = "Legolas aide annuaire métier\n"
-                        embed.add_field(name=title, value="Liste des commandes de l'annuaire pour les métiers",
-                                        inline=False)
-
-                        title = "Legolas aide annuaire réputation\n"
-                        embed.add_field(name=title, value="Liste des commandes de l'annuaire pour les réputations",
-                                        inline=False)
-                    elif words[2] == "admin":
-                        title = "Legolas admin list"
-                        embed.add_field(name=title,
-                                        value="Lister les rôles qui ont des droits supplémentaires auprès du bot",
-                                        inline=False)
-
-                        title = "Legolas admin ajouter @Role [@Role ...]"
-                        embed.add_field(name=title,
-                                        value="Ajouter des rôles qui ont des droits supplémentaires auprès du bot",
-                                        inline=False)
-
-                        title = "Legolas admin retirer [@Role ...]"
-                        embed.add_field(name=title,
-                                        value="Retirer des rôles qui ont des droits supplémentaires auprès du bot",
-                                        inline=False)
-
-                        title = "Legolas erreur list"
-                        embed.add_field(name=title,
-                                        value="Lister les personnes qui reçoivent les rapports d'erreur du bot",
-                                        inline=False)
-
-                        title = "Legolas erreur ajouter @Utilisateur [@Utilisateur ...]"
-                        embed.add_field(name=title,
-                                        value="Ajouter des personnes qui reçoivent les rapports d'erreur du bot",
-                                        inline=False)
-
-                        title = "Legolas erreur retirer [@Utilisateur ...]"
-                        embed.add_field(name=title,
-                                        value="Retirer aux personnes qui reçoivent les rapports d'erreur du bot",
-                                        inline=False)
-
-                        title = "Legolas admin nouveau"
-                        embed.add_field(name=title, value="WIP", inline=False)
-                    elif words[2] == "calendrier":
-                        title = "Legolas calendrier"
-                        embed.add_field(name=title, value="Recevoir le calendrier", inline=False)
-
-                        title = '''Legolas calendrier ajouter "nom" dd/mm/yy dd/mm/yy "description"'''
-                        embed.add_field(name=title, value="Ajouter un évènement au calendrier "
-                                                          "(le nom est plus court que la description)", inline=False)
-
-                        title = '''Legolas calendrier retirer "nom"'''
-                        embed.add_field(name=title, value="Retirer un évènement du calendrier", inline=False)
-
-                        title = "Legolas calendrier prochain"
-                        embed.add_field(name=title, value="Recevoir le prochain évènement dans le calendrier",
-                                        inline=False)
-                    elif words[2] == "accepted_classes":
-                        embed.add_field(name=", ".join(Characters.Character.accepted_classes),
-                                        value="Liste des valeurs acceptées pour l'entrée \"classe\"", inline=False)
-                    elif words[2] == "accepted_colors":
-                        embed.add_field(name=", ".join(Characters.Character.accepted_colors),
-                                        value="Liste des valeurs acceptées pour l'entrée \"color\"", inline=False)
-                    elif words[2] == "artisanat":
-                        embed.add_field(name=", ".join(persistentReputations.accepted_tiers),
-                                        value="Liste des valeurs acceptées pour l'entrée \"tier\"", inline=False)
-                    elif words[2] == "accepted_jobs":
-                        embed.add_field(name=", ".join(persistentJobs.accepted_jobs),
-                                        value="Liste des valeurs acceptées pour l'entrée \"job\"", inline=False)
-                    elif words[2] == "accepted_levels":
-                        embed.add_field(name=", ".join([key for key in persistentReputations.accepted_levels]),
-                                        value="Liste des valeurs acceptées pour l'entrée \"level\"", inline=False)
-                elif len(words) == 4:
-                    if words[2] == "annuaire":
-                        if words[3] == "personnage":
-                            title = "Legolas annuaire personnage [ajouter/màj] "
-                            title += "pseudo_ig accepted_class "
-                            title += "accepted_color (1-120)"
-                            embed.add_field(name=title, value="Ajouter/Mettre à jour un personnage dans l'annuaire",
-                                            inline=False)
-
-                            title = "Legolas annuaire personnage retirer pseudo_ig "
-                            embed.add_field(name=title, value="Retirer un personnage de l'annuaire",
-                                            inline=False)
-
-                            title = "Legolas annuaire personnage chercher "
-                            title = "[accepted_class ...] [pseudo_ig ...]"
-                            title = "[accepted_color ...] [(1-120)]-(1-120)]"
-                            embed.add_field(name=title, value="Rechercher un/des personnage(s) dans l'annuaire",
-                                            inline=False)
-                        elif words[3] == "métier (WIP)":
-                            title = "Legolas annuaire métier "
-                            title += "name:pseudo_ig job:[accepted_jobs] [[accepted_tier]:[or/bronze] ...] "
-                            embed.add_field(name=title,
-                                            value="Ajouter un métier dans l'annuaire, optionellement ses enclumes",
-                                            inline=False)
-
-                            title = "Legolas annuaire métier chercher "
-                            title += "[job:[accepted_jobs]] "
-                            title += "[tier:[artisanat]]"
-                            embed.add_field(name=title, value="Rechercher un métier dans l'annuaire", inline=False)
-                        elif words[3] == "réputation (WIP)":
-                            title = "Legolas annuaire réputation "
-                            title += "name:pseudo_ig job:[accepted_jobs] "
-                            title += "tier:[artisanat] level:[1-100]"
-                            embed.add_field(name=title, value="WRONG", inline=False)
-
-                            title = "Legolas annuaire réputation chercher "
-                            title += "[job:[accepted_jobs]] "
-                            title += "[tier:[artisanat]] [level:[1-100]]"
-                            embed.add_field(name=title, value="WRONG", inline=False)
-                else:
-                    title = "Legolas aide twitter"
-                    embed.add_field(name=title, value="Liste des commandes d'aide associées à Twitter", inline=False)
-
-                    title = "Legolas aide admin"
-                    embed.add_field(name=title,
-                                    value="Liste des commandes d'aide associées à la gestion des permissions vis à vis du bot",
-                                    inline=False)
-
-                    title = "Legolas aide annuaire"
-                    embed.add_field(name=title, value="Liste des commandes liées à l'annuaire", inline=False)
-
-                    title = "Legolas aide calendrier"
-                    embed.add_field(name=title, value="Liste des commandes liées au calendrier", inline=False)
-
-                    title = "Legolas aide accepted_classes"
-                    embed.add_field(name=title, value="Liste des valeurs acceptées pour les classes", inline=False)
-
-                    title = "Legolas aide accepted_colors"
-                    embed.add_field(name=title, value="Liste des valeurs acceptées pour les traits", inline=False)
-
-                    title = "Legolas aide artisanat"
-                    embed.add_field(name=title, value="Liste des valeurs acceptées pour les niveaux d'artisanat",
-                                    inline=False)
-
-                    title = "Legolas aide accepted_jobs"
-                    embed.add_field(name=title, value="Liste des valuers acceptées pour les métiers", inline=False)
-
-                    title = "Legolas aide accepted_levels"
-                    embed.add_field(name=title, value="Niveaux de réputation acceptés", inline=False)
             elif words[1] == "twitter":
                 if words[2] == "list":
                     msg = ""
@@ -311,6 +153,7 @@ async def on_message(message):
                                 for twitter_filter in twitter_filters:
                                     msg += "*" + twitter_filter.sentence + "*"
                                 msg += "\n"
+
                 elif words[2] == "filtre" and is_admin:
                     modified_channels = message.channel_mentions
                     twitter_channels = persistentTwitters.get_channels(words[3])
@@ -373,6 +216,7 @@ async def on_message(message):
                         for twitter_channel in twitter_channels:
                             persistentTwitters.remove_channel(twitter_channel.id)
                             msg += "'" + account + "' ne transmet plus les messages sur '" + channel.mention + "'\n"
+
             elif words[1] == "erreur" and is_admin:
                 if words[2] == "list":
                     reports = [report for report in persistentConfiguration.get_reports() if
@@ -408,8 +252,10 @@ async def on_message(message):
                         else:
                             msg = "Membre retiré"
                         msg += " de la liste de ceux qui recoivent les rapports d'erreur."
+
             elif words[1] == "admin" and not is_admin:
                 msg = "Vous ne pouvez pas utiliser cette commande !"
+
             elif words[1] == "admin" and is_admin:
                 if words[2] == "list":
                     admins = persistentConfiguration.get_admins(guild_id)
@@ -445,11 +291,12 @@ async def on_message(message):
                         msg = "WIP"
                     elif words[3] == "list":
                         msg = "WIP"
+
             elif words[1] == "annuaire":
                 annuary_modified = False
                 if words[2] == "excel":
                     channel = message.author
-                    with open(annuaire_path, "rb") as annuaire_stream:
+                    with open(annuary_path, "rb") as annuaire_stream:
                         msg = "Voici l'annuaire en format .xlsx !"
                         file = discord.File(annuaire_stream)
                 elif words[2] == "personnage":
@@ -469,14 +316,17 @@ async def on_message(message):
                                 if can_modify_character:
                                     persistentCharacters.update_character(character)
                                     msg = "Votre personnage a été mis à jour !"
+                            annuary_modified = True
                         elif words[3] == "màj":
                             if can_modify_character:
                                 persistentCharacters.update_character(character)
                                 msg = "Votre personnage a été mis à jour !"
+                                annuary_modified = True
                         elif words[3] == "retirer":
                             if is_admin or persistentCharacters.get_creator(words[4]) == message.author.name:
                                 persistentCharacters.remove_character(words[4])
                                 msg = "Votre personnage a été retiré !"
+                                annuary_modified = True
                             else:
                                 msg = "Vous ne possédez pas ce personnage !"
                         elif words[3] == "chercher":
@@ -520,8 +370,7 @@ async def on_message(message):
                     elif words[3] == "chercher":
                         msg = "WIP"
                 if annuary_modified:
-                    # TODO
-                    pass
+                    Annuary.storeAnnuary(annuary_path, characters=persistentCharacters.get_characters(guild_id))
             elif words[1] == "calendrier":
                 if len(words) == 2:
                     date = datetime.datetime.today().timestamp()
@@ -550,7 +399,7 @@ async def on_message(message):
                             persistentCalendar.remove_event(name)
                             msg += name + ",\n"
                         msg = msg[:-2]
-                    elif is_admin :
+                    elif is_admin:
                         dic = Calendar.Event.process_creation(words[3:])
                         dic["createdBy"] = message.author.name
                         dic["updatedBy"] = message.author.name
@@ -558,10 +407,10 @@ async def on_message(message):
                         print(dic)
                         _event = Calendar.Event.from_dict(dic)
                         if words[2] == "ajouter":
-                            try :
+                            try:
                                 persistentCalendar.add_event(_event)
                                 msg = "Evènement ajouté !"
-                            except psycopg2.errors.UniqueViolation :
+                            except psycopg2.errors.UniqueViolation:
                                 msg = "Un évènement avec ce nom existe déjà"
                         elif words[2] == "màj":
                             persistentCalendar.update_event(_event)
