@@ -3,6 +3,8 @@ from Utils.Persistence_Utils import *
 import datetime
 import discord
 import asyncio
+import traceback
+from apscheduler.job import Job
 
 
 class Event(Element):
@@ -19,11 +21,12 @@ class Event(Element):
         self.end = end
         self.description = description
 
-    def __repr__(self):
-        representation = str(datetime.datetime.fromtimestamp(self.begin))
-        representation += "=>" + str(datetime.datetime.fromtimestamp(self.end))
+    def __repr__(self, show_channel=False):
+        representation = str(datetime.datetime.fromtimestamp(self.begin)).split(' ')[0]
+        representation += "=>" + str(datetime.datetime.fromtimestamp(self.end)).split(' ')[0]
         representation += " : " + self.description
-        representation += "(<#" + self.channel_id + ">)"
+        if show_channel:
+            representation += "(<#" + str(self.channel_id) + ">)"
         return representation
 
     @staticmethod
@@ -97,12 +100,19 @@ class PersistentCalendars(Persistent):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
             (event.created_by, event.updated_by, event.name, event.guild_id, event.channel_id, event.begin, event.end,
              event.description))
-        trigger_date = datetime.datetime.today() + datetime.timedelta(seconds=30)
+        begin_date = datetime.datetime.fromtimestamp(event.begin)
+        trigger_date = begin_date - datetime.timedelta(hours=12)
         _id = event.name + str(event.begin)
-        job = self.scheduler.add_job(Event.recall, trigger="date", id=_id, args=[self.client, event],
-                                     next_run_time=str(trigger_date), replace_existing=True)
-        print(job)
-        return True
+        try :
+            job = self.scheduler.add_job(Event.recall, next_run_time=str(trigger_date),
+                                         trigger='date', id=_id, replace_existing=True,
+                                         args=[self.client, event])
+            print(job)
+            return True
+        except Exception as e :
+            print("Job adding exc. ===>"+str(e))
+            print(traceback.format_exc())
+            return False
 
     def remove_event(self, name, begin):
         self.write('''DELETE FROM Calendar WHERE "Name"=%s AND "Begin"=%s''', (name, begin))

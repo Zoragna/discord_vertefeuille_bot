@@ -11,32 +11,50 @@ import datetime
 import psycopg2
 import json
 import traceback
+import logging
 
 from Utils import Configuration, \
     Characters, Jobs, Reputations, \
     Calendar, Twitters, Persistence_Utils, Annuary
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 
 
 class CommandException(Exception):
     pass
 
 
+logging.basicConfig()
+
 annuary_path = "lotro_annuaire.xlsx"
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 
-scheduler = BackgroundScheduler()
 if "ENVIRONMENT" in os.environ and os.environ["ENVIRONMENT"] == "PROD":
     connection = psycopg2.connect(DATABASE_URL, sslmode='require')
-    scheduler.add_jobstore('sqlalchemy', url=DATABASE_URL)
+    jobstores = {
+        'sqlalchemy': SQLAlchemyJobStore(url=DATABASE_URL)
+    }
+    logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 else:
     connection = psycopg2.connect("postgres://localhost", user="postgres", password="root", database="lotro")
     # postgresql+psycopg2://scott:tiger@localhost/mydatabase
     # dialect+driver://username:password@host:port/database
-    scheduler.add_jobstore('sqlalchemy', url="postgresql+psycopg2://postgres:root@localhost/lotro")
+    jobstores = {
+        'sqlalchemy': SQLAlchemyJobStore(url="postgresql+psycopg2://postgres:root@localhost/lotro")
+    }
+executors = {
+  'default': ThreadPoolExecutor(20),
+  'processpool': ProcessPoolExecutor(5)
+}
+job_defaults = {
+  'coalesce': False,
+  'max_instances': 3
+}
+scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults)
 scheduler.start()
 
 client = discord.Client()
@@ -74,7 +92,7 @@ def ProcessSentences(text):
         # print(result)
     print(result)
     if result.count("\"") % 2 == 1:
-        print("Process Sentences END FAILIG")
+        print("Process Sentences END FAILING")
         raise CommandException()
     print("Process Sentences END")
     return result
@@ -107,7 +125,7 @@ async def on_message(message: discord.Message):
     if message.content.startswith('Legolas'):
         msg = ""
         channel = message.channel
-        is_embed = False
+        embed = None
         file = None
 
         words = message.content.split(' ')
@@ -386,17 +404,16 @@ async def on_message(message: discord.Message):
                         events = persistentCalendar.get_events(guild_id, after=date)
                         if len(events) > 1:
                             event = events[0]
-                            is_embed = True
                             embed = discord.Embed(title="Calendrier")
                             embed.add_field(name=event.name.replace("_", " "), value=repr(event), inline=False)
                         else:
                             msg = "Pas d'évènements dans le calendrier !"
                     elif words[2] == "retirer" and is_admin:
-                        msg = "Les évènements suivants ont été retirés :\n"
-                        for name in words[3:]:
-                            persistentCalendar.remove_event(name)
-                            msg += name + ",\n"
-                        msg = msg[:-2]
+                        name = words[3]
+                        splits= words[4]
+                        date = datetime.datetime(splits[2], splits[1], splits[0]).timestamp()
+                        persistentCalendar.remove_event(name, date)
+                        msg = "L'évènement du '%s' commençant le %s a été retiré" % (name, splits)
                     elif is_admin:
                         dic = Calendar.Event.process_creation(words[3:])
                         dic["createdBy"] = message.author.name
@@ -410,14 +427,16 @@ async def on_message(message: discord.Message):
                                 try:
                                     if persistentCalendar.add_event(_event):
                                         msg = "Evènement ajouté !"
+                                    else :
+                                        msg = "Evènement ajouté ! (aucune notification ne sera envoyée)"
                                 except psycopg2.IntegrityError:
                                     msg = "Un évènement avec ce nom existe déjà"
                             elif words[2] == "màj":
                                 persistentCalendar.update_event(_event)
                                 msg = "Evènement mis à jour !"
-            if msg != "" and not is_embed:
+            if msg != "" and embed is None :
                 await channel.send(msg, file=file)
-            elif is_embed:
+            elif embed is not None:
                 await channel.send(embed=embed, file=file)
             else:
                 await channel.send("Il semblerait que je ne puisse pas faire suivre votre requête !")
@@ -425,7 +444,7 @@ async def on_message(message: discord.Message):
             await channel.send("Il semblerait que je ne puisse pas faire suivre votre requête !")
         except Persistence_Utils.InitializationException:
             await channel.send("Votre demande ne suit pas le format attendu.")
-        except psycopg2.errors.UniqueViolation:
+        except psycopg2.errors.lookup("25P02"):
             await channel.send("Une entrée existe déjà pour cet objet")
         except Exception as e:
             msg = "Erreur, l'administrateur et d'autres personnes ont été notifiées !"

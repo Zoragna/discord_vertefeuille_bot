@@ -215,7 +215,7 @@ class TwitterListener(tweepy.StreamListener):
             embed.set_footer(text="Twitter",
                              icon_url="http://goinkscape.com/wp-content/uploads/2015/07/twitter-logo-final.png")
 
-            twitter_accounts = self.persistentTwitters.get_accounts_with_name(status_screen_name)
+            twitter_accounts = self.persistentTwitters.get_accounts(status_screen_name)
             if len(twitter_accounts) == 0:
                 print("[" + str(
                     datetime.datetime.today()) + "] No account registered with name '" + status_screen_name + "'")
