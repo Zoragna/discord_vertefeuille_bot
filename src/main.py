@@ -94,7 +94,7 @@ async def on_member_join(member):
     #    await new_channel.send("Bienvenue " + member.mention + " !")
 
 
-help_json = get_json("help.json")
+help_json = get_json("src/help.json")
 print("fichier d'aide")
 print(help_json)
 
