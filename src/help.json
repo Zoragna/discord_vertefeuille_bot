@@ -46,7 +46,7 @@
   "aide/calendrier": {
     "Legolas calendrier"
       : "Recevoir le calendrier",
-    "Legolas calendrier ajouter \"nom\" dd/mm/yy dd/mm/yy \"description\""
+    "Legolas calendrier ajouter \"nom\" dd/mm/yyyy dd/mm/yyyy \"description\" #channel_de_diffusion"
       : "Ajouter un évènement au calendrier (le nom est plus court que la description)",
     "Legolas calendrier retirer \"nom\""
       :"Retirer un évènement du calendrier",

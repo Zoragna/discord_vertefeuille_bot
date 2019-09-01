@@ -1,5 +1,7 @@
 from Utils.Persistence_Utils import *
 
+import discord
+
 
 class Admin(Element):
     rows = [("createdBy", str), ("guildId", int), ("roleId", int)]

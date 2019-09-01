@@ -1,7 +1,7 @@
-## Discord Bot for Les Descendants de VerteFeuille
+# Discord Bot for Les Descendants de VerteFeuille
 # French guild on Lord of the Rings Online
 #
-## add url :
+# add url :
 # https://discordapp.com/oauth2/authorize?client_id=614569601287585841&scope=bot
 #
 
@@ -10,12 +10,12 @@ import os
 import datetime
 import psycopg2
 import json
+import traceback
 
 from Utils import Configuration, \
     Characters, Jobs, Reputations, \
     Calendar, Twitters, Persistence_Utils, Annuary
 
-import traceback
 from apscheduler.schedulers.background import BackgroundScheduler
 
 
@@ -28,10 +28,16 @@ annuary_path = "lotro_annuaire.xlsx"
 DATABASE_URL = os.environ["DATABASE_URL"]
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 
+scheduler = BackgroundScheduler()
 if "ENVIRONMENT" in os.environ and os.environ["ENVIRONMENT"] == "PROD":
     connection = psycopg2.connect(DATABASE_URL, sslmode='require')
+    scheduler.add_jobstore('sqlalchemy', url=DATABASE_URL)
 else:
     connection = psycopg2.connect("postgres://localhost", user="postgres", password="root", database="lotro")
+    # postgresql+psycopg2://scott:tiger@localhost/mydatabase
+    # dialect+driver://username:password@host:port/database
+    scheduler.add_jobstore('sqlalchemy', url="postgresql+psycopg2://postgres:root@localhost/lotro")
+scheduler.start()
 
 client = discord.Client()
 
@@ -39,7 +45,7 @@ persistentConfiguration = Configuration.PersistentConfiguration(connection, clie
 persistentCharacters = Characters.PersistentCharacters(connection)
 persistentJobs = Jobs.PersistentJobs(connection)
 persistentReputations = Reputations.PersistentReputations(connection)
-persistentCalendar = Calendar.PersistentCalendars(connection)
+persistentCalendar = Calendar.PersistentCalendars(connection, scheduler, client)
 persistentTwitters = Twitters.PersistentTwitters(connection, persistentConfiguration, client)
 
 persistentConfiguration.init_database()
@@ -48,13 +54,6 @@ persistentJobs.init_database()
 persistentReputations.init_database()
 persistentCalendar.init_database()
 persistentTwitters.init_database()
-
-sched = BackgroundScheduler()
-
-
-@sched.scheduled_job('interval', seconds=5)
-def this_interval_is_not_working():
-    print(".")
 
 
 def ProcessSentences(text):
@@ -100,7 +99,7 @@ print(help_json)
 
 
 @client.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     if message.author == client.user:
         return
     if message.channel.type != discord.ChannelType.text:
@@ -369,6 +368,7 @@ async def on_message(message):
                         msg = "WIP"
                 if annuary_modified:
                     Annuary.storeAnnuary(annuary_path, characters=persistentCharacters.get_characters(guild_id))
+
             elif words[1] == "calendrier":
                 if len(words) == 2:
                     date = datetime.datetime.today().timestamp()
@@ -402,18 +402,19 @@ async def on_message(message):
                         dic["createdBy"] = message.author.name
                         dic["updatedBy"] = message.author.name
                         dic["guildId"] = guild_id
-                        print(dic)
-                        _event = Calendar.Event.from_dict(dic)
-                        if words[2] == "ajouter":
-                            try:
-                                persistentCalendar.add_event(_event)
-                                msg = "Evènement ajouté !"
-                            except psycopg2.errors.UniqueViolation:
-                                msg = "Un évènement avec ce nom existe déjà"
-                        elif words[2] == "màj":
-                            persistentCalendar.update_event(_event)
-                            msg = "Evènement mis à jour !"
-            print("!")
+                        if len(message.channel_mentions) == 1:
+                            dic["channelId"] = message.channel_mentions[0].id
+                            print(dic)
+                            _event = Calendar.Event.from_dict(dic)
+                            if words[2] == "ajouter":
+                                try:
+                                    if persistentCalendar.add_event(_event):
+                                        msg = "Evènement ajouté !"
+                                except psycopg2.IntegrityError:
+                                    msg = "Un évènement avec ce nom existe déjà"
+                            elif words[2] == "màj":
+                                persistentCalendar.update_event(_event)
+                                msg = "Evènement mis à jour !"
             if msg != "" and not is_embed:
                 await channel.send(msg, file=file)
             elif is_embed:

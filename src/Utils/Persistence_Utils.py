@@ -1,9 +1,7 @@
 import traceback
 
-import discord
-import time
 import datetime
-import asyncio
+from psycopg2.errors import lookup
 
 
 class Persistent(object):
@@ -32,7 +30,7 @@ class Persistent(object):
             results = self.cursor.fetchall()
             print("[" + str(datetime.datetime.today()) + "]" + query % objects)
             return results
-        except Exception as e:
+        except lookup("25P02") as e:
             self.cursor.execute("ROLLBACK")
             self.connection.commit()
             print("[" + str(datetime.datetime.today()) + "] ROLLBACK | " + query % objects)
@@ -46,7 +44,7 @@ class Persistent(object):
             self.cursor.execute(query, record)
             self.connection.commit()
             print("[" + str(datetime.datetime.today()) + "]" + query % record)
-        except Exception as e:
+        except lookup("25P02") as e:
             self.cursor.execute("ROLLBACK")
             self.connection.commit()
             print("[" + str(datetime.datetime.today()) + "] ROLLBACK | " + query % record)

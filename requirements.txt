@@ -3,3 +3,4 @@ tweepy
 apscheduler
 openpyxl
 psycopg2
+sqlalchemy
