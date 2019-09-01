@@ -1,0 +1,4 @@
+discord
+tweepy
+apscheduler
+openpyxl

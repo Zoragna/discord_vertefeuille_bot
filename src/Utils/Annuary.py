@@ -1,0 +1,64 @@
+import openpyxl
+
+def storeAnnuary(data, path):
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    if "characters" in data:
+        ws_chars = wb.create_sheet(title="Personnages")
+
+        ws_chars[openpyxl.utils.get_column_letter(2) + "1"] = "Nom"
+        ws_chars[openpyxl.utils.get_column_letter(3) + "1"] = "Classe"
+        ws_chars[openpyxl.utils.get_column_letter(4) + "1"] = "Couleur"
+        ws_chars[openpyxl.utils.get_column_letter(5) + "1"] = "Niveau"
+
+        i = 2
+        for character in data["characters"]:
+            ws_chars[openpyxl.utils.get_column_letter(2) + str(i)] = character["name"]
+            ws_chars[openpyxl.utils.get_column_letter(3) + str(i)] = character["class"]
+            color_cell = openpyxl.utils.get_column_letter(4) + str(i)
+            ws_chars[color_cell] = character["color"]
+            if character["color"] == "rouge":
+                ws_chars[color_cell].font = openpyxl.styles.Font(color=openpyxl.styles.colors.RED, bold=True)
+            elif character["color"] == "bleu":
+                ws_chars[color_cell].font = openpyxl.styles.Font(color=openpyxl.styles.colors.BLUE, bold=True)
+            elif character["color"] == "jaune":
+                ws_chars[color_cell].font = openpyxl.styles.Font(color=openpyxl.styles.colors.YELLOW, bold=True)
+            ws_chars[openpyxl.utils.get_column_letter(5) + str(i)] = character["level"]
+            i += 1
+
+    if "jobs" in data:
+        ws_jobs = wb.create_sheet(title="Métiers")
+
+        ws_jobs[openpyxl.utils.get_column_letter(2) + "1"] = "Nom"
+        ws_jobs[openpyxl.utils.get_column_letter(3) + "1"] = "Métier"
+        ws_jobs[openpyxl.utils.get_column_letter(4) + "1"] = "Catégorie"
+        ws_jobs[openpyxl.utils.get_column_letter(5) + "1"] = "Niveau"
+
+        i = 2
+        for job in data["jobs"]:
+            ws_jobs[openpyxl.utils.get_column_letter(2) + str(i)] = job["name"]
+            ws_jobs[openpyxl.utils.get_column_letter(3) + str(i)] = job["job"]
+            i += 1
+
+    if "reps" in data:
+        ws_reps = wb.create_sheet(title="Réputations")
+
+        ws_reps[openpyxl.utils.get_column_letter(2) + "1"] = "Nom"
+        ws_reps[openpyxl.utils.get_column_letter(3) + "1"] = "Faction"
+        ws_reps[openpyxl.utils.get_column_letter(4) + "1"] = "Niveau"
+        ws_reps[openpyxl.utils.get_column_letter(5) + "1"] = "Points"
+
+        i = 2
+        for rep in data["reps"]:
+            ws_reps[openpyxl.utils.get_column_letter(2) + str(i)] = rep["char"]
+            ws_reps[openpyxl.utils.get_column_letter(3) + str(i)] = rep["name"]
+            ws_reps[openpyxl.utils.get_column_letter(4) + str(i)] = rep["level"]
+            ws_reps[openpyxl.utils.get_column_letter(5) + str(i)] = rep["points"]
+            i += 1
+
+    if "anvils" in data:
+        ws_anvils = wb.create_sheet(title="Enclumes")
+    try:
+        wb.save(filename=path)
+    except:
+        print("Could not save annuary as xlsx")
