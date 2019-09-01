@@ -17,11 +17,11 @@ def storeAnnuary(path, **kwargs):
             ws_chars[openpyxl.utils.get_column_letter(3) + str(i)] = character.class_
             color_cell = openpyxl.utils.get_column_letter(4) + str(i)
             ws_chars[color_cell] = character.main_trait
-            if character["color"] == "rouge":
+            if character.main_trait == "rouge":
                 ws_chars[color_cell].font = openpyxl.styles.Font(color=openpyxl.styles.colors.RED, bold=True)
-            elif character["color"] == "bleu":
+            elif character.main_trait == "bleu":
                 ws_chars[color_cell].font = openpyxl.styles.Font(color=openpyxl.styles.colors.BLUE, bold=True)
-            elif character["color"] == "jaune":
+            elif character.main_trait == "jaune":
                 ws_chars[color_cell].font = openpyxl.styles.Font(color=openpyxl.styles.colors.YELLOW, bold=True)
             ws_chars[openpyxl.utils.get_column_letter(5) + str(i)] = character.level
             i += 1
