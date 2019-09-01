@@ -2,3 +2,4 @@ discord
 tweepy
 apscheduler
 openpyxl
+psycopg2

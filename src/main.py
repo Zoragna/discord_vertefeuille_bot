@@ -10,7 +10,6 @@ import os
 import datetime
 import psycopg2
 import json
-import codecs
 
 from Utils import Configuration, \
     Characters, Jobs, Reputations, \
@@ -22,7 +21,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 class CommandException(Exception):
     pass
-
 
 annuary_path = "lotro_annuaire.xlsx"
 local = True
