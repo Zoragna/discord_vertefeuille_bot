@@ -13,17 +13,17 @@ def storeAnnuary(path, **kwargs):
 
         i = 2
         for character in kwargs["characters"]:
-            ws_chars[openpyxl.utils.get_column_letter(2) + str(i)] = character["name"]
-            ws_chars[openpyxl.utils.get_column_letter(3) + str(i)] = character["class"]
+            ws_chars[openpyxl.utils.get_column_letter(2) + str(i)] = character.name
+            ws_chars[openpyxl.utils.get_column_letter(3) + str(i)] = character.class_
             color_cell = openpyxl.utils.get_column_letter(4) + str(i)
-            ws_chars[color_cell] = character["color"]
+            ws_chars[color_cell] = character.main_trait
             if character["color"] == "rouge":
                 ws_chars[color_cell].font = openpyxl.styles.Font(color=openpyxl.styles.colors.RED, bold=True)
             elif character["color"] == "bleu":
                 ws_chars[color_cell].font = openpyxl.styles.Font(color=openpyxl.styles.colors.BLUE, bold=True)
             elif character["color"] == "jaune":
                 ws_chars[color_cell].font = openpyxl.styles.Font(color=openpyxl.styles.colors.YELLOW, bold=True)
-            ws_chars[openpyxl.utils.get_column_letter(5) + str(i)] = character["level"]
+            ws_chars[openpyxl.utils.get_column_letter(5) + str(i)] = character.level
             i += 1
 
     if "jobs" in kwargs:
