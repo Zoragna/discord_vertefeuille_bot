@@ -67,9 +67,9 @@ class PersistentCharacters(Persistent):
 
     def update_character(self, chara):
         self.write('''UPDATE Characters 
-        SET CreatedBy=%s, UpdatedBy=%s, Class=%s, "Level"=%s, MainTrait=%s, "Name"=%s
+        SET UpdatedBy=%s, Class=%s, "Level"=%s, MainTrait=%s
         WHERE "Name"=%s''',
-                   (chara.created_by, chara.updated_by, chara.class_, chara.level, chara.main_trait, chara.name,
+                   (chara.updated_by, chara.class_, chara.level, chara.main_trait,
                     chara.name))
 
     def get_characters(self, guild_id=None):

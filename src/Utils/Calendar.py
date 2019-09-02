@@ -4,7 +4,6 @@ import datetime
 import discord
 import asyncio
 import traceback
-from apscheduler.job import Job
 
 
 class Event(Element):
@@ -103,14 +102,14 @@ class PersistentCalendars(Persistent):
         begin_date = datetime.datetime.fromtimestamp(event.begin)
         trigger_date = begin_date - datetime.timedelta(hours=12)
         _id = event.name + str(event.begin)
-        try :
+        try:
             job = self.scheduler.add_job(Event.recall, next_run_time=str(trigger_date),
                                          trigger='date', id=_id, replace_existing=True,
                                          args=[self.client, event])
             print(job)
             return True
-        except Exception as e :
-            print("Job adding exc. ===>"+str(e))
+        except Exception as e:
+            print("Job adding exc. ===>" + str(e))
             print(traceback.format_exc())
             return False
 

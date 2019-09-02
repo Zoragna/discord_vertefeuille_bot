@@ -4,3 +4,5 @@ apscheduler
 openpyxl
 psycopg2
 sqlalchemy
+gunicorn
+flask

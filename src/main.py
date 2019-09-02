@@ -47,12 +47,12 @@ else:
         'sqlalchemy': SQLAlchemyJobStore(url="postgresql+psycopg2://postgres:root@localhost/lotro")
     }
 executors = {
-  'default': ThreadPoolExecutor(20),
-  'processpool': ProcessPoolExecutor(5)
+    'default': ThreadPoolExecutor(20),
+    'processpool': ProcessPoolExecutor(5)
 }
 job_defaults = {
-  'coalesce': False,
-  'max_instances': 3
+    'coalesce': False,
+    'max_instances': 3
 }
 scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults)
 scheduler.start()
@@ -146,7 +146,6 @@ async def on_message(message: discord.Message):
             if words[1] == "aide":
                 entry = "/".join(words[1:])
                 if entry in help_json:
-                    is_embed = True
                     embed = discord.Embed(title="Commandes d'aide disponibles", color=0x37f23c)
                     for title in help_json[entry]:
                         embed.add_field(name=title, value=help_json[entry][title], inline=False)
@@ -186,13 +185,12 @@ async def on_message(message: discord.Message):
                                        % twitter_channel.username, channel_name
                             else:
                                 persistentTwitters.remove_filter(twitter_channel.id, sentence)
-                                msg += "Le filtre de transmission sur '%s' pour '%s' dans le salon '%s' a été retiré.\n" \
+                                msg += "Le filtre de transmission sur '%s' pour '%s' dans le salon '%s' a été retiré." \
                                        % sentence, twitter_channel.username, channel_name
                     elif words[4] == "ajouter":
                         for modified_channel in modified_channels:
                             twitter_chnls = [twt_ch for twt_ch in twitter_channels if
                                              twt_ch.channel_id == modified_channel.id and twt_ch.username == words[3]]
-                            dic_id = -1
                             if len(twitter_chnls) == 0:
                                 dic = {"createdBy": message.author.name, "username": words[3],
                                        "channel": modified_channel.id}
@@ -215,7 +213,7 @@ async def on_message(message: discord.Message):
                             dic = {"createdBy": message.author.name, "username": account}
                             twitter_account = Twitters.TwitterAccount.from_dict(dic)
                             persistentTwitters.add_account(twitter_account)
-                        except psycopg2.errors.UniqueViolation:
+                        except psycopg2.errors.lookup("25P02"):
                             print("twitter account already created")
                         for mention_channel in channels:
                             dic = {"createdBy": message.author.name, "username": account,
@@ -309,11 +307,13 @@ async def on_message(message: discord.Message):
 
             elif words[1] == "annuaire":
                 annuary_modified = False
+
                 if words[2] == "excel":
                     channel = message.author
                     with open(annuary_path, "rb") as annuaire_stream:
                         msg = "Voici l'annuaire en format .xlsx !"
                         file = discord.File(annuaire_stream)
+
                 elif words[2] == "personnage":
                     if len(words) > 3:
                         dic = Characters.Character.process_creation(words[4:])
@@ -354,6 +354,7 @@ async def on_message(message: discord.Message):
                             [repr(character) for character in persistentCharacters.get_characters(guild_id)])
                         if msg == "":
                             msg = "Pas de personnages enregistrés !"
+
                 elif words[2] == "métier":
                     dic = Characters.Character.process_creation(words[4:])
                     dic["createdBy"] = message.author.name
@@ -368,6 +369,7 @@ async def on_message(message: discord.Message):
                         msg = "WIP"
                     elif words[3] == "retirer":
                         msg = "WIP"
+
                 elif words[2] == "enclumes":
                     if words[3] == "ajouter":
                         msg = "WIP"
@@ -375,6 +377,7 @@ async def on_message(message: discord.Message):
                         msg = "WIP"
                     elif words[3] == "retirer":
                         msg = "WIP"
+
                 elif words[2] == "réputation":
                     if words[3] == "ajouter":
                         msg = "WIP"
@@ -410,7 +413,7 @@ async def on_message(message: discord.Message):
                             msg = "Pas d'évènements dans le calendrier !"
                     elif words[2] == "retirer" and is_admin:
                         name = words[3]
-                        splits= words[4]
+                        splits = words[4]
                         date = datetime.datetime(splits[2], splits[1], splits[0]).timestamp()
                         persistentCalendar.remove_event(name, date)
                         msg = "L'évènement du '%s' commençant le %s a été retiré" % (name, splits)
@@ -427,20 +430,20 @@ async def on_message(message: discord.Message):
                                 try:
                                     if persistentCalendar.add_event(_event):
                                         msg = "Evènement ajouté !"
-                                    else :
+                                    else:
                                         msg = "Evènement ajouté ! (aucune notification ne sera envoyée)"
                                 except psycopg2.IntegrityError:
                                     msg = "Un évènement avec ce nom existe déjà"
                             elif words[2] == "màj":
                                 persistentCalendar.update_event(_event)
                                 msg = "Evènement mis à jour !"
-            if msg != "" and embed is None :
+            if msg != "" and embed is None:
                 await channel.send(msg, file=file)
             elif embed is not None:
                 await channel.send(embed=embed, file=file)
             else:
                 await channel.send("Il semblerait que je ne puisse pas faire suivre votre requête !")
-        except (IndexError, CommandException) as e:
+        except (IndexError, CommandException):
             await channel.send("Il semblerait que je ne puisse pas faire suivre votre requête !")
         except Persistence_Utils.InitializationException:
             await channel.send("Votre demande ne suit pas le format attendu.")

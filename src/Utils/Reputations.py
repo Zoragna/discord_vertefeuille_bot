@@ -3,8 +3,7 @@ import sys
 
 
 class PersistentReputations(Persistent):
-    accepted_tiers = ["apprenti", "compagnon", "expert", "artisan", "maître", "suprême", "rhovanion", "estemnet",
-                      "ouestemnet", "anòrien"]
+
     accepted_factions = ["Hall_de_Thorin", "La_Société_Matthom", "Les_hommes_de_Bree", "La_ligue_de_la_Taverne",
                          "L'association_de_la_bière", "La_ligue_des_chasseurs_de poulets_en_Eriador", "Les_Eglains",
                          "Les_Rôdeurs_d'Esteldìn", "Les_Gardiens_d'Annùminas", "Les_Elfes_de_Fondcombe",
