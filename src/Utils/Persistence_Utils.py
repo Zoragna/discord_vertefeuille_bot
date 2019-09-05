@@ -64,6 +64,14 @@ class Element(object):
                 return False
         return True
 
+    @staticmethod
+    def list_query_list(values, key):
+        query = ""
+        query += "("+key+"=%s"
+        query += " OR "+key+"%s".join(["" for _ in values])
+        query += ")"
+        return query
+
 
 class InitializationException(Exception):
     pass

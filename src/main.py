@@ -74,7 +74,7 @@ persistentCalendar.init_database()
 persistentTwitters.init_database()
 
 
-def ProcessSentences(text):
+def process_sentences(text):
     result = text
     print("Process Sentences")
     print(text)
@@ -138,7 +138,7 @@ async def on_message(message: discord.Message):
             if this_character_thing > 0:
                 if this_character_thing % 2 == 1:
                     raise CommandException()
-                words = ProcessSentences(message.content).split(' ')
+                words = process_sentences(message.content).split(' ')
             is_admin = message.author.name == message.guild.owner.name or persistentConfiguration.is_admin(
                 message.author, message.guild.id)
             guild_id = message.guild.id
@@ -356,37 +356,68 @@ async def on_message(message: discord.Message):
                             msg = "Pas de personnages enregistrés !"
 
                 elif words[2] == "métier":
-                    dic = Characters.Character.process_creation(words[4:])
-                    dic["createdBy"] = message.author.name
-                    dic["updatedBy"] = message.author.name
-                    dic["guildId"] = guild_id
-                    character = Characters.Character.from_dict(dic)
-                    can_modify_character = is_admin or persistentCharacters.get_creator(
-                        character.name) == message.author.name
-                    if words[3] == "ajouter":
-                        msg = "WIP"
-                    elif words[3] == "màj":
-                        msg = "WIP"
-                    elif words[3] == "retirer":
-                        msg = "WIP"
 
-                elif words[2] == "enclumes":
-                    if words[3] == "ajouter":
-                        msg = "WIP"
-                    elif words[3] == "màj":
-                        msg = "WIP"
-                    elif words[3] == "retirer":
-                        msg = "WIP"
+                    if len(words) == 3 :
+                        jobs = persistentJobs.get_jobs(guild_id)
+                        for job in jobs:
+                            msg += str(job)
+                            anvils = persistentJobs.get_anvils(guild_id, job.id_)
+                            for anvil in anvils:
+                                msg += str(anvil)
+                            msg += "\n"
+                    else:
+                        if words[3] == "retirer":
+                            name = words[4]
+                            job = words[5]
+                            can_modify_job = is_admin or persistentJobs.get_creator(
+                                name, job) == message.author.name
+                            if can_modify_job:
+                                id_ = persistentJobs.get_job_id(name, job)
+                                persistentJobs.remove_job(name, job)
+                                persistentJobs.remove_anvil(id_)
+                                msg = "Votre métier a été retiré "
+                        else:
+                            dic = Jobs.Job.process_creation([word for word in words[4:] if len(word.split(':')) != 2])
+                            dic["createdBy"] = message.author.name
+                            dic["updatedBy"] = message.author.name
+                            dic["guildId"] = guild_id
+                            job = Jobs.Job.from_dict(dic)
+
+                            dic = Jobs.JobAnvil.process_creation(
+                                [word for word in words[4:] if len(word.split(':')) == 2])
+                            dic["createdBy"] = message.author.name
+                            dic["updatedBy"] = message.author.name
+                            dic["guildId"] = guild_id
+                            job_anvil = Jobs.JobAnvil.from_dict(dic)
+
+                            can_modify_job = is_admin or persistentJobs.get_creator(
+                                job.name, job.job) == message.author.name
+                            if words[3] == "ajouter":
+                                try:
+                                    persistentJobs.add_job(job)
+                                    persistentJobs.add_anvil(job_anvil)
+                                    msg = "Votre métier a été ajouté !"
+                                except psycopg2.IntegrityError:
+                                    if can_modify_job:
+                                        persistentJobs.update_anvil(job_anvil)
+                                        msg = "Votre métier a été mis à jour !"
+                            elif words[3] == "màj":
+                                if can_modify_job:
+                                    persistentJobs.update_anvil(job_anvil)
+                                    msg = "Votre métier a été mis à jour !"
 
                 elif words[2] == "réputation":
-                    if words[3] == "ajouter":
-                        msg = "WIP"
-                    elif words[3] == "màj":
+                    if len(words) == 3:
                         msg = "WIP"
                     elif words[3] == "retirer":
                         msg = "WIP"
-                    elif words[3] == "chercher":
-                        msg = "WIP"
+                    else:
+                        if words[3] == "màj":
+                            msg = "WIP"
+                        elif words[3] == "ajouter":
+                            msg = "WIP"
+                        elif words[3] == "chercher":
+                            msg = "WIP"
                 if annuary_modified:
                     Annuary.storeAnnuary(annuary_path, characters=persistentCharacters.get_characters(guild_id))
 

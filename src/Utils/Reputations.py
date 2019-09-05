@@ -1,9 +1,10 @@
 from Utils.Persistence_Utils import *
+from typing import List
+
 import sys
 
 
-class PersistentReputations(Persistent):
-
+class Reputation(Element):
     accepted_factions = ["Hall_de_Thorin", "La_Société_Matthom", "Les_hommes_de_Bree", "La_ligue_de_la_Taverne",
                          "L'association_de_la_bière", "La_ligue_des_chasseurs_de poulets_en_Eriador", "Les_Eglains",
                          "Les_Rôdeurs_d'Esteldìn", "Les_Gardiens_d'Annùminas", "Les_Elfes_de_Fondcombe",
@@ -23,25 +24,114 @@ class PersistentReputations(Persistent):
         "honoré": {"min": 190000, "max": 280000},
         "célébré": {"min": 280000, "max": sys.maxsize},
     }
-    Reputations_rows = ["createdBy", "updatedBy", "name", "level", "faction"]
+
+    rows = [("createdBy", str), ("updatedBy", str), ("guildId", int), ("name", str), ("level", int), ("faction", str)]
+
+    def __init__(self, creator, updator, guild_id, name, level, faction):
+        self.created_by = creator
+        self.updated_by = updator
+        self.guild_id = guild_id
+        self.name = name
+        self.level = level
+        self.faction = faction
+
+    def __repr__(self):
+        representation = self.name + ", "
+        representation += self.level + " chez "
+        representation += self.faction
+        return representation
+
+    @staticmethod
+    def process_creation(words):
+        dic = {}
+        for word in words:
+            if word in Reputation.accepted_factions:
+                dic["faction"] = word
+            elif word in Reputation.accepted_levels:
+                dic["level"] = word
+            else:
+                dic["name"] = word
+        return dic
+
+    @classmethod
+    def from_dict(cls, dic):
+        if Reputation.validate(dic, Reputation.rows):
+            return cls(dic["createdBy"], dic["updatedBy"], dic["guildId"], dic["name"], dic["level"], dic["faction"])
+        else:
+            raise InitializationException()
+
+
+class PersistentReputations(Persistent):
 
     def init_database(self):
         self.write('''CREATE TABLE IF NOT EXISTS Reputations (
         CreatedBy text NOT NULL,
         UpdatedBy text NOT NULL,
+        GuildId bigint NOT NULL,
         "Name" varchar(100),
         Faction varchar(100),
         Level text,
         PRIMARY KEY("Name", Faction));''', ())
 
-    def addCharacter(self, character):
-        pass
+    def add_reputation(self, reputation):
+        self.write('''INSERT INTO Reputations (CreatedBy, UpdatedBy, GuildId, "Name", Faction, Level) 
+        VALUES (%s, %s, %s, %s, %s, %s)''',
+                   (reputation.created_by, reputation.updated_by, reputation.guild_id,
+                    reputation.name, reputation.faction, reputation.level))
 
-    def updateCharacter(self, character):
-        pass
+    def remove_reputation(self, name, faction):
+        self.write('''DELETE FORM Reputations WHERE "Name"=%s ANd Faction=%s''',(name, faction))
 
-    def removeCharacter(self, name):
-        pass
+    def update_reputation(self, reputation):
+        self.write('''UPDATE Reputations 
+                       SET UpdatedBy=%s, Level=%s
+                       WHERE "Name"=%s ANd Faction=%s''',
+                   (reputation.updated_by, reputation.level,
+                    reputation.name, reputation.faction))
 
-    def searchCharacters(self, name=None, min_level=None, max_level=None, profession=None):
-        pass
+    @staticmethod
+    def process_reputation_query(words):
+        dic = {}
+        for word in words:
+            if word in Reputation.accepted_levels:
+                if "level" not in dic:
+                    dic["level"] = []
+                dic["level"].append(word)
+            elif word in Reputation.accepted_factions:
+                if "faction" not in dic:
+                    dic["faction"] = []
+                dic["faction"].append(word)
+            else:
+                if "name" not in dic:
+                    dic["name"] = []
+                dic["name"].append(word)
+        return dic
+
+    def search_reputations(self, request_dict):
+        query = "SELECT * FROM Reputations"
+        objects = ()
+        first = True
+        for key, value in request_dict.iteritems():
+            if first:
+                query += " WHERE"
+                first = False
+            else:
+                query += " AND"
+            if key == "name":
+                query_key = '''"Name"'''
+            elif key == "faction":
+                query_key = "faction"
+            elif key == "level":
+                query_key = "level"
+            if isinstance(value, List):
+                query += Reputation.list_query_list(value, query_key)
+                for val in value:
+                    objects += (val,)
+            else:
+                query += query_key+"=%s"
+                objects += (value,)
+        results = self.read(query, objects)
+        reputations = []
+        for result in results:
+            reputations.append(Reputation(result[0], result[1], result[2], result[3], result[4], result[5]))
+        return reputations

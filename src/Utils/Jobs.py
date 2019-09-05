@@ -73,14 +73,14 @@ class JobAnvil(Element):
         for word in words:
             splits = word.split(':')
             if len(splits) == 2:
-                dic["tier"] = splits[0]
+                if splits[0] in JobAnvil.accepted_tiers:
+                    dic["tier"] = splits[0]
                 if splits[1] == "bronze":
                     dic["bronze"] = True
+                    dic["gold"] = False
                 elif splits[1] == "or":
                     dic["bronze"] = True
                     dic["gold"] = True
-            elif word in JobAnvil.accepted_tiers:
-                dic["tier"] = word
         return dic
 
     @classmethod
@@ -133,6 +133,13 @@ class PersistentJobs(Persistent):
         for result in results:
             jobs.append(Job(result[0], result[1], result[2], result[3], result[4], result[5]))
         return jobs
+
+    def get_creator(self, name, job):
+        results = self.read('''SELECT * FROM Jobs WHERE "Name"=%s AND Job=%s''', (name, job))
+        if len(results) == 1:
+            return results[0][3]
+        else:
+            return ""
 
     @staticmethod
     def process_job_query(words):
