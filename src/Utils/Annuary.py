@@ -1,4 +1,21 @@
 import openpyxl
+import json
+
+
+def init_databases(connection):
+    cursor = connection.cursor()
+    query = ""
+    with open("src/build.sql") as stream:
+        for line in stream:
+            query += line
+    cursor.execute(query, ())
+    connection.commit()
+
+
+def get_json(path):
+    with open(path, "rb") as stream:
+        return json.load(stream)
+
 
 def storeAnnuary(path, **kwargs):
     wb = openpyxl.Workbook()

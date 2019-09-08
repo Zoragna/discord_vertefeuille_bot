@@ -98,16 +98,6 @@ class PersistentJobs(Persistent):
         self.init_database_jobs()
         self.init_database_anvils()
 
-    def init_database_jobs(self):
-        self.write('''CREATE TABLE IF NOT EXISTS Jobs (
-                CreatedBy text NOT NULL,
-                UpdatedBy text NOT NULL,
-                GuildId bigint NOT NULL,
-                Job text NOT NULL,
-                "Name" varchar(100) NOT NULL,
-                Id SERIAL,
-                PRIMARY KEY("Name", Job));''', ())
-
     def add_job(self, job):
         self.write('''INSERT INTO Jobs (CreatedBy, UpdatedBy, GuildId, Job, "Name") VALUES (%s, %s, %s, %s, %s)''',
                    (job.created_by, job.updated_by, job.guild_id, job.job, job.name))
@@ -190,16 +180,6 @@ class PersistentJobs(Persistent):
         for result in results:
             jobs.append(Job(result[0], result[1], result[2], result[3], result[4], result[5]))
         return jobs
-
-    def init_database_anvils(self):
-        self.write('''CREATE TABLE IF NOT EXISTS JobsAnvils ( 
-                CreatedBy text NOT NULL,
-                UpdatedBy text NOT NULL,
-                Id integer NOT NULL,
-                Tier Text NOT NULL,
-                Bronze boolean NOT NULL,
-                Gold boolean NOT NULL,
-                PRIMARY KEY(Id, Tier));''', ())
 
     def add_anvil(self, anvil: JobAnvil):
         self.write('''INSERT INTO JobsAnvils 

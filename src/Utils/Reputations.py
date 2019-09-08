@@ -63,16 +63,6 @@ class Reputation(Element):
 
 class PersistentReputations(Persistent):
 
-    def init_database(self):
-        self.write('''CREATE TABLE IF NOT EXISTS Reputations (
-        CreatedBy text NOT NULL,
-        UpdatedBy text NOT NULL,
-        GuildId bigint NOT NULL,
-        "Name" varchar(100),
-        Faction varchar(100),
-        Level text,
-        PRIMARY KEY("Name", Faction));''', ())
-
     def add_reputation(self, reputation):
         self.write('''INSERT INTO Reputations (CreatedBy, UpdatedBy, GuildId, "Name", Faction, Level) 
         VALUES (%s, %s, %s, %s, %s, %s)''',

@@ -1,8 +1,9 @@
-discord
-tweepy
-apscheduler
-openpyxl
 psycopg2
 sqlalchemy
+discord
+tweepy
+twitchio
+apscheduler
+openpyxl
 gunicorn
 flask

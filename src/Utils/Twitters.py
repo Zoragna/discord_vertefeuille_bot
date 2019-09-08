@@ -79,12 +79,6 @@ class PersistentTwitters(Persistent):
         self.api = tweepy.API(self.auth)
         self.twitter_listener = TwitterListener(self, configuration, self.client)
         self.twitter_stream = tweepy.Stream(auth=self.api.auth, listener=self.twitter_listener)
-
-    def init_accounts_database(self):
-        self.write('''CREATE TABLE IF NOT EXISTS TwitterAccounts (
-                CreatedBy text NOT NULL,
-                Username varchar(100) PRIMARY KEY );
-                ''', ())
         self.follows = [str(self.api.get_user(twitter_account.username).id) for twitter_account in self.get_accounts()]
         self.twitter_stream.filter(follow=self.follows, is_async=True)
 
@@ -103,19 +97,11 @@ class PersistentTwitters(Persistent):
         if username is None:
             results = self.read("SELECT * FROM TwitterAccounts", ())
         else:
-            results = self.read('''SELECT * FROM TwitterAccounts WHERE Username="%s"''', username)
+            results = self.read('''SELECT * FROM TwitterAccounts WHERE Username=%s''', username)
         accounts = []
         for result in results:
             accounts.append(TwitterAccount(result[0], result[1]))
         return accounts
-
-    def init_channels_database(self):
-        self.write('''CREATE TABLE IF NOT EXISTS TwitterChannels ( 
-        CreatedBy text NOT NULL,
-        Username varchar(100),
-        Channel bigint NOT NULL,
-        Id SERIAL,
-        PRIMARY KEY (Username, Channel));''', ())
 
     def add_channel(self, twitter_channel: TwitterChannel):
         self.write(
@@ -142,19 +128,11 @@ class PersistentTwitters(Persistent):
         return channels
 
     def get_channel_ids(self, username):
-        results = self.read('''SELECT Id FROM TwitterChannels WHERE Username="%s"''', username)
+        results = self.read('''SELECT Id FROM TwitterChannels WHERE Username=%s''', username)
         ids = []
         for result in results:
             ids.append(result[0])
         return ids
-
-    def init_filters_database(self):
-        self.write('''CREATE TABLE IF NOT EXISTS TwitterFilters (
-        CreatedBy text NOT NULL,
-        UpdatedBy text NOT NULL,
-        Id integer NOT NULL,
-        Sentence varchar(300),
-        PRIMARY KEY(Id, Sentence)); ''', ())
 
     def add_filter(self, twitter_filter: TwitterFilter):
         self.write('''INSERT INTO TwitterFilters (CreatedBy, UpdatedBy, Id, Sentence) VALUES (%s, %s, %s, %s) \

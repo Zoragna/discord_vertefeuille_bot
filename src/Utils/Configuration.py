@@ -35,21 +35,12 @@ class Report(Element):
 
 class PersistentConfiguration(Persistent):
 
-    def __init__(self, connection, client):
+    def __init__(self, connection):
         super().__init__(connection)
-        self.client = client
+        self.client = None
 
-    def init_database(self):
-        self.write('''CREATE TABLE IF NOT EXISTS ReportId (
-        CreatedBy text NOT NULL,
-        GuildId bigint NOT NULL,
-        Id bigint NOT NULL,
-        PRIMARY KEY(GuildId, Id));''', ())
-        self.write('''CREATE TABLE IF NOT EXISTS AdminId (
-        CreatedBy text NOT NULL,
-        GuildId bigint NOT NULL,
-        Id bigint NOT NULL,
-        PRIMARY KEY(GuildId, Id));''', ())
+    def set_client(self, client):
+        self.client = client
 
     def add_admin(self, admin: Admin):
         self.write('''INSERT INTO AdminId(CreatedBy, GuildId, Id) VALUES (%s, %s, %s)''',
