@@ -1,12 +1,12 @@
 from flask import Flask
 
-app = Flask(__name__)
+application = Flask(__name__)
 
 
-@app.route("/")
+@application.route("/")
 def hello():
     return "Hello World!"
 
 
 if __name__ == "__main__":
-    app.run("lotro-legolas.herokuapp.com")
+    application.run("lotro-legolas.herokuapp.com")
