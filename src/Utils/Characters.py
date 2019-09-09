@@ -6,8 +6,8 @@ class Character(Element):
     rows = [("createdBy",str), ("updatedBy",str), ("guildId",int), ("class",str), ("level",int), ("mainTrait",str),
             ("name",str)]
 
-    accepted_classes = ["champion", "capitaine", "maître_du_savoir", "chasseur", "voleur", "béorning", "gardien",
-                        "ménestrel"]
+    accepted_classes = ["cambrioleur", "capitaine", "champion", "chasseur", "gardien", "gardien_des_runes",
+                        "maître_du_savoir", "ménestrel", "sentinelle", "béornide"]
     accepted_colors = ["bleu", "jaune", "rouge"]
 
     def __init__(self, creator, updator, guild_id, cls, level, main_trait, name):
@@ -97,14 +97,15 @@ class PersistentCharacters(Persistent):
                 if "trait" not in dic:
                     dic["trait"] = []
                 dic["trait"].append(word)
-            splits = word.split('-')
-            if len(splits) == 2:
-                if len(splits[0]) > 0:
-                    dic["min_level"] = int(splits[0])
-                if len(splits[1]) > 0:
-                    dic["max_level"] = int(splits[1])
             else:
-                dic["name"] = word
+                splits = word.split('-')
+                if len(splits) == 2:
+                    if len(splits[0]) > 0:
+                        dic["min_level"] = int(splits[0])
+                    if len(splits[1]) > 0:
+                        dic["max_level"] = int(splits[1])
+                else:
+                    dic["name"] = word
         return dic
 
     def search_characters(self, request_dict):
@@ -113,7 +114,7 @@ class PersistentCharacters(Persistent):
         if len(request_dict) > 0:
             query += " WHERE"
             first = True
-            for key, value in request_dict.iteritems():
+            for key, value in request_dict.items():
                 if first:
                     first = False
                 else:
@@ -122,33 +123,29 @@ class PersistentCharacters(Persistent):
                     query += ''' "Level" >= %s'''
                     objects += (value,)
                 elif key == "max_level":
-                    query += '''"Level" <= %s'''
+                    query += ''' "Level" <= %s'''
                     objects += (value,)
                 elif key == "name":
-                    query += '''"Name" = %s'''
+                    query += ''' "Name" = %s'''
                     objects += (value,)
                 elif key == "class":
                     if isinstance(value, List):
-                        query += '''( Class=%s'''
-                        query += ''' OR Class=%s'''.join(["" for _ in value])
-                        query += '''")'''
+                        query += " "+Element.list_query_list(value, "Class")
                         for val in value:
                             objects += (val,)
                     else:
-                        query += '''Class=%s'''
+                        query += ''' Class=%s'''
                         objects += (value,)
                 elif key == "trait":
                     if isinstance(value, List):
-                        query += "( MainTrait=%s"
-                        query += " OR MainTrait=%s".join(["" for _ in value])
-                        query += ")"
+                        query += " "+Element.list_query_list(value, "MainTrait")
                         for val in value:
                             objects += (val,)
                     else:
-                        query += '''MainTrait=%s'''
+                        query += ''' MainTrait=%s'''
                         objects += (value,)
                 elif key == "guildId":
-                    query += "GuildId=%s"
+                    query += " GuildId=%s"
                     objects += (value,)
         results = self.read(query, objects)
         characters = []
@@ -157,7 +154,7 @@ class PersistentCharacters(Persistent):
         return characters
 
     def get_creator(self, name):
-        results = self.read('''SELECT * FROM Characters WHERE Name="%s"''', name)
+        results = self.read('''SELECT * FROM Characters WHERE "Name"=%s''', name)
         if len(results) == 0:
             return ""
         return results[0][0]

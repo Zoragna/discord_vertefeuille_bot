@@ -8,3 +8,6 @@ from Utils.Persistence_Utils import *
 # et puis notifier dans un channel
 # ça ressemble un peu à Twitter
 #
+# checker toutes les minutes si y a une nouvelle entrée dans
+# une table particulière
+#

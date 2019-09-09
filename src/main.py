@@ -10,7 +10,7 @@ import os
 import datetime
 import psycopg2
 import logging
-import pprint
+# import pprint
 
 from Utils import Configuration, \
     Characters, Jobs, Reputations, \
@@ -81,8 +81,9 @@ async def general_help(message, words, **kwargs):
         embed.add_field(name="Legolas aide twitter",
                         value="Liste des commandes d'aide associées à Twitter", inline=False)
         embed.add_field(name="Legolas aide admin",
-                        value="Liste des commandes d'aide associées à la gestion des permissions vis à vis du bot", inline=False)
-        embed.add_field(name="Legolas aide annuaire",
+                        value="Liste des commandes d'aide associées à la gestion des permissions vis à vis du bot",
+                        inline=False)
+        embed.add_field(name="Legolas aide annuaire [personnage/métier/réputation]",
                         value="Liste des commandes liées à l'annuaire", inline=False)
         embed.add_field(name="Legolas aide calendrier",
                         value="Liste des commandes liées au calendrier", inline=False)
@@ -339,6 +340,16 @@ async def send_excel_sheets(message, words, **kwargs):
     await channel.send(msg, file=file)
 
 
+@client.map_input("annuaire/personnage/aide", "annuaire/personnage",
+                  "Legolas annuaire personnage aide",
+                  "Lister les valeurs acceptés pour certains champs")
+async def help_characters(message, words, **kwargs):
+    embed = discord.Embed(title="**Valeurs acceptées pour certains champs de personnage**")
+    embed.add_field(name="Classes acceptées", value=",".join(Characters.Character.accepted_classes), inline=False)
+    embed.add_field(name="Couleurs acceptées", value=",".join(Characters.Character.accepted_colors), inline=False)
+    await message.channel.send(embed=embed)
+
+
 @client.map_input("annuaire/personnage/list", "annuaire/personnage",
                   "Legolas annuaire personnage list",
                   "Lister les personnages présents dans l'annuaire")
@@ -357,7 +368,7 @@ async def process_characters(message, words, **kwargs):
     guild_id = message.guild.id
     channel = message.channel
     action = kwargs["action"]
-    dic = Characters.Character.process_creation(words[4:])
+    dic = Characters.Character.process_creation(words)
     dic["createdBy"] = message.author.name
     dic["updatedBy"] = message.author.name
     dic["guildId"] = guild_id
@@ -380,8 +391,8 @@ async def process_characters(message, words, **kwargs):
             msg = "Votre personnage a été mis à jour !"
             annuary_modified = True
     elif action == "retirer":
-        if persistentCharacters.get_creator(words[4]) == message.author.name:
-            persistentCharacters.remove_character(words[4])
+        if can_modify_character:
+            persistentCharacters.remove_character(character.name)
             msg = "Votre personnage a été retiré !"
             annuary_modified = True
         else:
@@ -399,8 +410,21 @@ async def search_characters(message, words, **kwargs):
     dic = Characters.PersistentCharacters.process_query(words)
     dic["guildId"] = message.guild.id
     characters = persistentCharacters.search_characters(dic)
-    msg = ",\n".join([repr(character) for character in characters])
+    if len(characters) > 0:
+        msg = ",\n".join([repr(character) for character in characters])
+    else:
+        msg = "Aucun personnage dans l'annuaire ne correspond à votre recherche !"
     await message.channel.send(msg)
+
+
+@client.map_input("annuaire/métier/aide", "annuaire/métier",
+                  "Legolas annuaire métier aide",
+                  "Lister les valeurs acceptés pour certains champs")
+async def help_characters(message, words, **kwargs):
+    embed = discord.Embed(title="**Valeurs acceptées pour certains champs de métier**")
+    embed.add_field(name="Métiers acceptés", value=",".join(Jobs.Job.accepted_jobs), inline=False)
+    embed.add_field(name="Tiers acceptés", value=",".join(Jobs.JobAnvil.accepted_tiers), inline=False)
+    await message.channel.send(embed=embed)
 
 
 @client.map_input("annuaire/métier/list", "annuaire/métier",
@@ -480,6 +504,16 @@ async def update_or_add_job(message, words, **kwargs):
                   "WIP")
 async def search_jobs(message, words, **kwargs):
     await message.channel.send("WIP")
+
+
+@client.map_input("annuaire/réputation/aide", "annuaire/réputation",
+                  "Legolas annuaire réputation aide",
+                  "Lister les valeurs acceptés pour certains champs")
+async def help_characters(message, words, **kwargs):
+    embed = discord.Embed(title="**Valeurs acceptées pour certains champs de réputation**")
+    embed.add_field(name="Factions acceptées", value=",".join(Reputations.Reputation.accepted_factions), inline=False)
+    embed.add_field(name="Niveaux acceptés", value=",".join(Reputations.Reputation.accepted_levels), inline=False)
+    await message.channel.send(embed=embed)
 
 
 @client.map_input("annuaire/réputation/list", "annuaire/réputation",
@@ -594,8 +628,8 @@ async def process_event_modification(message, words, **kwargs):
     await message.channel.send(msg)
 
 
-pprint.pprint(client.mapping)
-pprint.pprint(client.help)
+# pprint.pprint(client.mapping)
+# pprint.pprint(client.help)
 
 @client.event
 async def on_member_join(member):
@@ -615,7 +649,7 @@ async def on_message(message: discord.Message):
         return
     if message.content.startswith(client.caller):
         command_msg = "[" + str(message.guild) + "][" + message.channel.name + "][" + \
-                          str(message.created_at) + "] '" + message.content + "' from '" + message.author.name + "'"
+                      str(message.created_at) + "] '" + message.content + "' from '" + message.author.name + "'"
         print(command_msg)
         await client.process_input(message)
 

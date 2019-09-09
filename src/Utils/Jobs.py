@@ -6,8 +6,8 @@ class Job(Element):
     request_rows = [("createdBy", str), ("updatedBy", str), ("guildId", int), ("job", str), ("name", str)]
     response_rows = [("createdBy", str), ("updatedBy", str), ("guildId", int), ("job", str), ("name", str), ("id", int)]
 
-    accepted_jobs = ["cuisinier", "paysan", "forestier", "bijoutier", "prospecteur", "historien", "tailleur",
-                     "ferronier", "sculpteur"]
+    accepted_jobs = ["bijoutier", "cuisinier", "érudit", "fabricants_d'armes", "fermier", "ferronier", "forestier",
+                     "prosepcteur", "tailleur"]
 
     def __init__(self, creator, updator, guild_id, job, name, id_=-1):
         self.created_by = creator
@@ -45,8 +45,7 @@ class JobAnvil(Element):
     rows = [("createdBy", str), ("updatedBy", str), ("guildId", int), ("id", int), ("tier", str),
             ("bronze", bool), ("gold", bool)]
 
-    accepted_tiers = ["apprenti", "compagnon", "expert", "artisan", "maître", "suprême", "rhovanion", "estemnet",
-                      "ouestemnet", "anòrien"]
+    accepted_tiers = ["apprenti", "compagnon", "expert", "artisan", "maître", "suprême", "ouestfolde", "anòrien"]
 
     def __init__(self, creator, updator, guild_id, id_, tier, bronze, gold):
         self.created_by = creator

@@ -23,7 +23,15 @@ class Bot(discord.Client):
 
     @staticmethod
     async def empty_func(message, **kwargs):
-        await message.channel.send("Je n'ai pas compris :(")
+        pass
+
+    @staticmethod
+    async def not_understood(message, **kwargs):
+        await message.channel.send("Je n'ai pas compris ! ;(")
+
+    @staticmethod
+    async def unauthorized(message, **kwargs):
+        await message.channel.send("Vous n'êtes pas authorisé à faire ça !")
 
     @staticmethod
     def find_key(dic):
@@ -42,16 +50,16 @@ class Bot(discord.Client):
             words = words[1:]
         for i in range(len(words)):
             word = words[i]
-            print("==>"+word)
-            pprint.pprint(tmp)
             if word in tmp:
                 tmp = tmp[word]
             else:
                 found_key = Bot.find_key(tmp)
+                print(found_key + str(".*" in tmp))
                 if found_key != "__NOT_FOUND__":
                     kwargs[found_key] = word
+                    tmp = tmp["{"+found_key+"}"]
                 elif ".*" in tmp:
-                    await Bot.launch_input(tmp[".*"], self.configurator, message, words[i+1:], **kwargs)
+                    await Bot.launch_input(tmp[".*"], self.configurator, message, words[i:], **kwargs)
                     return
                 else:
                     # command cannot be understood
@@ -65,8 +73,9 @@ class Bot(discord.Client):
     @staticmethod
     async def launch_input(func, configurator, message: discord.Message, words, **kwargs):
         channel = message.channel
-        pprint.pprint(kwargs)
-        pprint.pprint(func)
+        print(func)
+        print(words)
+        print(kwargs)
         try:
             kwargs["is_admin"] = configurator.is_admin(message.author, message.guild.id)
             await func(message, words, **kwargs)
@@ -226,7 +235,8 @@ class Element(object):
     def list_query_list(values, key):
         query = ""
         query += "(" + key + "=%s"
-        query += " OR " + key + "%s".join(["" for _ in values])
+        if len(values) > 1 :
+            query += " OR " + key + "=%s".join(["" for _ in values])
         query += ")"
         return query
 
