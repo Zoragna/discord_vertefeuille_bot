@@ -4,13 +4,12 @@
 # add url :
 # https://discordapp.com/oauth2/authorize?client_id=614569601287585841&scope=bot
 #
-
 import discord
 import os
 import datetime
 import psycopg2
 import logging
-# import pprint
+import pprint
 
 from Utils import Configuration, \
     Characters, Jobs, Reputations, \
@@ -68,7 +67,6 @@ persistentConfiguration.set_client(client)
 
 @client.map_input("aide/.*", "", "Legolas aide", "Afficher l'aide")
 async def general_help(message, words, **kwargs):
-    print(words)
     if len(words) > 0:
         entry = "/".join(words)
         if entry in client.help:
@@ -90,7 +88,7 @@ async def general_help(message, words, **kwargs):
         await message.channel.send(embed=embed)
 
 
-@client.map_input("twitter/{account}/{action}", "twitter",
+@client.map_input("twitter/{account}/{action}/.*", "twitter",
                   "Legolas twitter <twitter_user> [ajouter/retirer] #<salon> [#<salon> ...]",
                   "Ajouter ou retirer un salon pour la diffusion d'un compte twitter")
 @Persistence_Utils.Bot.is_admin(persistentConfiguration)
@@ -118,7 +116,7 @@ async def process_twitter_account(message, words, **kwargs):
         twitter_channels = [twt_chnl for twt_chnl in twitter_channels if
                             twt_chnl.channel_id in channel_ids]
         for twitter_channel in twitter_channels:
-            persistentTwitters.remove_channel(twitter_channel.id)
+            persistentTwitters.remove_channel(account, twitter_channel.id)
             twt_channel = client.get_channel(twitter_channel.channel_id)
             msg += "'" + account + "' ne transmet plus les messages sur '" + twt_channel.mention + "'\n"
     await message.channel.send(msg)
@@ -173,20 +171,21 @@ async def remove_twitter_filter(message, words, **kwargs):
         await message.channel.send(msg)
 
 
-@client.map_input("twitter/filtre/ajouter/.*", "twitter",
+@client.map_input("twitter/filtre/{twitter_user}/ajouter/{sentence}/.*", "twitter",
                   "Legolas twitter filtre <twitter_user> [ajouter/retirer] \"texte\" #<salon> [#<salon> ...]",
                   "Ajouter un filtre pour un salon pour un compte twitter")
 @Persistence_Utils.Bot.is_admin(persistentConfiguration)
 async def add_twitter_filter(message, words, **kwargs):
     modified_channels = message.channel_mentions
-    twitter_channels = persistentTwitters.get_channels(words[0])
-    sentence = words[1].replace("_", " ")
+    twitter_user = kwargs["twitter_user"]
+    twitter_channels = persistentTwitters.get_channels()
+    sentence = kwargs["sentence"].replace("_", " ")
     msg = ""
     for modified_channel in modified_channels:
         twitter_chnls = [twt_ch for twt_ch in twitter_channels if
-                         twt_ch.channel_id == modified_channel.id and twt_ch.username == words[3]]
+                         twt_ch.channel_id == modified_channel.id and twt_ch.username == twitter_user]
         if len(twitter_chnls) == 0:
-            dic = {"createdBy": message.author.name, "username": words[3],
+            dic = {"createdBy": message.author.name, "username": twitter_user,
                    "channel": modified_channel.id}
             twitter_channel = Twitters.TwitterChannel.from_dict(dic)
             dic_id = persistentTwitters.add_channel(twitter_channel)
@@ -197,7 +196,7 @@ async def add_twitter_filter(message, words, **kwargs):
         twitter_filter = Twitters.TwitterFilter.from_dict(dic)
         persistentTwitters.add_filter(twitter_filter)
         msg += "Les tweets de %s contenant %s sont transmis vers %s !" \
-               % (words[3], sentence, modified_channel.mention)
+               % (twitter_user, sentence, modified_channel.mention)
     await message.channel.send(msg)
 
 
@@ -345,8 +344,8 @@ async def send_excel_sheets(message, words, **kwargs):
                   "Lister les valeurs acceptés pour certains champs")
 async def help_characters(message, words, **kwargs):
     embed = discord.Embed(title="**Valeurs acceptées pour certains champs de personnage**")
-    embed.add_field(name="Classes acceptées", value=",".join(Characters.Character.accepted_classes), inline=False)
-    embed.add_field(name="Couleurs acceptées", value=",".join(Characters.Character.accepted_colors), inline=False)
+    embed.add_field(name="Classes acceptées", value=", ".join(Characters.Character.accepted_classes), inline=False)
+    embed.add_field(name="Couleurs acceptées", value=", ".join(Characters.Character.accepted_colors), inline=False)
     await message.channel.send(embed=embed)
 
 
@@ -361,43 +360,45 @@ async def list_characters(message, words, **kwargs):
     await message.channel.send(msg)
 
 
-@client.map_input("annuaire/personnage/{action}/.*", "annuaire/personnage",
+@client.map_input("annuaire/personnage/{action}/{name}/.*", "annuaire/personnage",
                   "Legolas annuaire personnage [ajouter/màj/retirer] pseudo_ig [accepted_class accepted_color (1-120)]",
                   "Ajouter/Mettre à jour/Retirer un personnage dans/de l'annuaire")
 async def process_characters(message, words, **kwargs):
+    msg = ""
+    register_modified = False
     guild_id = message.guild.id
     channel = message.channel
     action = kwargs["action"]
-    dic = Characters.Character.process_creation(words)
-    dic["createdBy"] = message.author.name
-    dic["updatedBy"] = message.author.name
-    dic["guildId"] = guild_id
-    character = Characters.Character.from_dict(dic)
-    can_modify_character = kwargs["is_admin"] or persistentCharacters.get_creator(character.name) == message.author.name
-    msg = ""
-    annuary_modified = False
-    if action == "ajouter":
-        try:
-            persistentCharacters.add_character(character)
-            msg = "Votre personnage a été ajouté !"
-        except psycopg2.IntegrityError:
+    character_name = kwargs["name"]
+    can_modify_character = kwargs["is_admin"] or persistentCharacters.get_creator(character_name) == message.author.name
+    if action == "retirer":
+        if can_modify_character:
+            persistentCharacters.remove_character(character_name)
+            msg = "Votre personnage a été retiré !"
+            register_modified = True
+        else:
+            msg = "Vous ne possédez pas ce personnage !"
+    else:
+        dic = Characters.Character.process_creation(words)
+        dic["createdBy"] = message.author.name
+        dic["updatedBy"] = message.author.name
+        dic["guildId"] = guild_id
+        character = Characters.Character.from_dict(dic)
+        if action == "ajouter":
+            try:
+                persistentCharacters.add_character(character)
+                msg = "Votre personnage a été ajouté !"
+            except psycopg2.IntegrityError:
+                if can_modify_character:
+                    persistentCharacters.update_character(character)
+                    msg = "Votre personnage a été mis à jour !"
+            register_modified = True
+        elif action == "màj":
             if can_modify_character:
                 persistentCharacters.update_character(character)
                 msg = "Votre personnage a été mis à jour !"
-        annuary_modified = True
-    elif action == "màj":
-        if can_modify_character:
-            persistentCharacters.update_character(character)
-            msg = "Votre personnage a été mis à jour !"
-            annuary_modified = True
-    elif action == "retirer":
-        if can_modify_character:
-            persistentCharacters.remove_character(character.name)
-            msg = "Votre personnage a été retiré !"
-            annuary_modified = True
-        else:
-            msg = "Vous ne possédez pas ce personnage !"
-    if annuary_modified:
+                register_modified = True
+    if register_modified:
         # TODO Maybe this could deserve a decorator (we need to split this into methods then)
         Annuary.storeAnnuary(annuary_path, characters=persistentCharacters.get_characters(guild_id))
     await channel.send(msg)
@@ -628,7 +629,7 @@ async def process_event_modification(message, words, **kwargs):
     await message.channel.send(msg)
 
 
-# pprint.pprint(client.mapping)
+pprint.pprint(client.mapping)
 # pprint.pprint(client.help)
 
 @client.event

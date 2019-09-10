@@ -8,6 +8,7 @@ def init_databases(connection):
     with open("src/build.sql") as stream:
         for line in stream:
             query += line
+    print(query)
     cursor.execute(query, ())
     connection.commit()
 

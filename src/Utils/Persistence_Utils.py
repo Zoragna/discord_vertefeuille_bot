@@ -41,7 +41,11 @@ class Bot(discord.Client):
         return "__NOT_FOUND__"
 
     async def process_input(self, message: discord.Message):
-        words = Bot.process_sentences(message.content).split(' ')
+        try:
+            words = Bot.process_sentences(message.content).split(' ')
+        except CommandException:
+            await Bot.not_understood(message)
+            return
         tmp = self.mapping
         func = Bot.empty_func
         kwargs = {}
@@ -54,7 +58,6 @@ class Bot(discord.Client):
                 tmp = tmp[word]
             else:
                 found_key = Bot.find_key(tmp)
-                print(found_key + str(".*" in tmp))
                 if found_key != "__NOT_FOUND__":
                     kwargs[found_key] = word
                     tmp = tmp["{"+found_key+"}"]
@@ -62,8 +65,7 @@ class Bot(discord.Client):
                     await Bot.launch_input(tmp[".*"], self.configurator, message, words[i:], **kwargs)
                     return
                 else:
-                    # command cannot be understood
-                    await Bot.empty_func(message)
+                    await Bot.not_understood(message)
                     return
         if len(words) == i + 1 and not isinstance(tmp, FunctionType):
             await Bot.launch_input(tmp[".*"], self.configurator, message, [], **kwargs)
@@ -106,15 +108,14 @@ class Bot(discord.Client):
 
     def is_admin(self):
         def decorator_is_admin(func):
+            @wraps(func)
             def wrapper_is_admin(message, words, **kwargs):
-                configurator = self.configurator
                 is_admin = message.author.name == message.guild.owner.name or \
-                    configurator.is_admin(message.author, message.guild.id)
+                    self.configurator.is_admin(message.author, message.guild.id)
                 if is_admin:
-                    func(message, words, **kwargs)
+                    return func(message, words, **kwargs)
                 else:
-                    # TODO there should be a function more related to unauthorized answer
-                    Bot.empty_func(message, **kwargs)
+                    return Bot.unauthorized(message, **kwargs)
 
             return wrapper_is_admin
 

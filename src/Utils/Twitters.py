@@ -66,11 +66,6 @@ class TwitterFilter(Element):
 
 class PersistentTwitters(Persistent):
 
-    def init_database(self):
-        self.init_filters_database()
-        self.init_channels_database()
-        self.init_accounts_database()
-
     def __init__(self, connection, configuration, client):
         super().__init__(connection)
         self.client = client
@@ -112,10 +107,16 @@ class PersistentTwitters(Persistent):
         return results[0][3]
 
     def remove_channel(self, username, channel_id=None):
+        twitter_channel_ids = self.get_channel_ids(username)
         if channel_id is None:
             self.write('''DELETE FROM TwitterChannels WHERE Username=%s''', username)
+            for twitter_channel_id in twitter_channel_ids:
+                self.remove_filter(twitter_channel_id)
         else:
             self.write('''DELETE FROM TwitterChannels WHERE Username=%s AND Channel=%s''', (username, channel_id))
+            for twitter_channel in self.get_channels(username):
+                if twitter_channel.channel_id == channel_id:
+                    self.remove_filter(twitter_channel.id)
 
     def get_channels(self, username=None) -> List[TwitterChannel]:
         if username is None:
@@ -202,31 +203,44 @@ class TwitterListener(tweepy.StreamListener):
             twitter_account = twitter_accounts[0]
             username = twitter_account.username
 
-            channel_ids = self.persistentTwitters.get_channel_ids(username)
-            for channel_id in channel_ids:
-                twitter_channel = self.client.get_channel(channel_id)
-                try:
-                    if self.filter_tweet(channel_id, twitter_channel, embed.description):
-                        coro = twitter_channel.send("@everyone", embed=embed)
-                        fut = asyncio.run_coroutine_threadsafe(coro, self.client.loop)
-                        fut.result()
-                except discord.HTTPException:
-                    msg = "[" + str(datetime.datetime.today()) + "][" + twitter_channel.guild.name + "]"
-                    msg += "Could not sent '" + status_text + "' from '" + status_screen_name + "'"
-                    msg += " on channel '" + twitter_channel.name + "'"
-                    error_msg = msg + "\n" + traceback.format_exc()
+            send_once = False
+            twitter_channels = self.persistentTwitters.get_channels(username)
+            candidates = {}
+            for twitter_channel in twitter_channels:
+                key = self.filter_tweet(twitter_channel, embed.description)
+                if key not in candidates:
+                    candidates[key] = []
+                candidates[key].append(twitter_channel)
+            elected_twitter_channels = []
+            if "FILTERED" in candidates:
+                elected_twitter_channels = candidates["FILTERED"]
+            elif "NO_FILTERS" in candidates:
+                elected_twitter_channels = candidates["NO_FILTERS"]
+            try:
+                for twitter_channel in elected_twitter_channels:
+                    coroutine = self.client.get_channel(twitter_channel.channel_id).send("everyone", embed=embed)
+                    fut = asyncio.run_coroutine_threadsafe(coroutine, self.client.loop)
+                    fut.result()
+            except discord.HTTPException:
+                msg = "[" + str(datetime.datetime.today()) + "][" + twitter_channel.guild.name + "]"
+                msg += "Could not sent '" + status_text + "' from '" + status_screen_name + "'"
+                msg += " on channel '" + twitter_channel.name + "'"
+                error_msg = msg + "\n" + traceback.format_exc()
 
-                    coroutine = self.persistentConfiguration.warn_error(error_msg, twitter_channel.guild.id)
-                    future = asyncio.run_coroutine_threadsafe(coroutine, self.client.loop)
-                    future.result()
+                coroutine = self.persistentConfiguration.warn_error(error_msg, twitter_channel.guild.id)
+                future = asyncio.run_coroutine_threadsafe(coroutine, self.client.loop)
+                future.result()
 
     def on_error(self, status_code):
         if status_code == 420:
             return False
 
-    def filter_tweet(self, twitter_id, channel, text):
-        twitter_filters = self.persistentTwitters.get_filters(twitter_id, channel.id)
+    def filter_tweet(self, twitter_channel: TwitterChannel, text):
+        twitter_filters = self.persistentTwitters.get_filters(twitter_channel.id)
         for twitter_filter in twitter_filters:
             if twitter_filter.sentence in text:
-                return True
-        return len(twitter_filters) == 0
+                return "FILTERED"
+        if len(twitter_filters) == 0:
+            return "NO_FILTERS"
+        else:
+            return "NO"
