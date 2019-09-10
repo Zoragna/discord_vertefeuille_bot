@@ -218,7 +218,7 @@ class TwitterListener(tweepy.StreamListener):
                 elected_twitter_channels = candidates["NO_FILTERS"]
             try:
                 for twitter_channel in elected_twitter_channels:
-                    coroutine = self.client.get_channel(twitter_channel.channel_id).send("everyone", embed=embed)
+                    coroutine = self.client.get_channel(twitter_channel.channel_id).send("@everyone", embed=embed)
                     fut = asyncio.run_coroutine_threadsafe(coroutine, self.client.loop)
                     fut.result()
             except discord.HTTPException:
