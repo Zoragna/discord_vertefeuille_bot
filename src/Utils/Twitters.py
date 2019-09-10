@@ -236,9 +236,10 @@ class TwitterListener(tweepy.StreamListener):
             return False
 
     def filter_tweet(self, twitter_channel: TwitterChannel, text):
+        text = text.lower()
         twitter_filters = self.persistentTwitters.get_filters(twitter_channel.id)
         for twitter_filter in twitter_filters:
-            if twitter_filter.sentence in text:
+            if twitter_filter.sentence.lower() in text:
                 return "FILTERED"
         if len(twitter_filters) == 0:
             return "NO_FILTERS"
