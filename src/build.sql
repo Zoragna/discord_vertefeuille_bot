@@ -19,10 +19,10 @@ CREATE TABLE IF NOT EXISTS JobsAnvils (
 CREATE TABLE IF NOT EXISTS Reputations (
         CreatedBy text NOT NULL,
         UpdatedBy text NOT NULL,
-        GuildId bigint NOT NULL,
         "Name" varchar(100),
         Faction varchar(100),
         Level text,
+        GuildId bigint NOT NULL,
         PRIMARY KEY("Name", Faction));
 
 CREATE TABLE IF NOT EXISTS ReportId (
@@ -54,3 +54,14 @@ CREATE TABLE IF NOT EXISTS TwitterFilters (
         Id integer NOT NULL,
         Sentence varchar(300),
         PRIMARY KEY(Id, Sentence));
+
+CREATE TABLE IF NOT EXISTS Calendar (
+        CreatedBy text NOT NULL,
+        UpdatedBy text NOT NULL,
+        "Name" varchar(100) NOT NULL,
+        GuildId bigint NOT NULL,
+        ChannelId bigint NOT NULL,
+        "Begin" bigint NOT NULL,
+        "End" bigint NOT NULL,
+        Description text NOT NULL,
+        PRIMARY KEY("Name", "Begin"));

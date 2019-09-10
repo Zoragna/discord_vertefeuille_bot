@@ -93,10 +93,6 @@ class JobAnvil(Element):
 
 class PersistentJobs(Persistent):
 
-    def init_database(self):
-        self.init_database_jobs()
-        self.init_database_anvils()
-
     def add_job(self, job):
         self.write('''INSERT INTO Jobs (CreatedBy, UpdatedBy, GuildId, Job, "Name") VALUES (%s, %s, %s, %s, %s)''',
                    (job.created_by, job.updated_by, job.guild_id, job.job, job.name))
@@ -198,15 +194,11 @@ class PersistentJobs(Persistent):
                    (anvil.updated_by, anvil.bronze, anvil.gold,
                     anvil.id_, anvil.tier))
 
-    def get_anvils(self, guild_id=None, id_=None):
-        if guild_id is None and id_ is None:
+    def get_anvils(self, id_=None):
+        if id_ is None:
             results = self.read('''SELECT * FROM JobsAnvils''', ())
-        elif guild_id is None and id_ is not None:
-            results = self.read('''SELECT * FROM JobsAnvils WHERE Id=%s''', id_)
-        elif guild_id is not None and id_ is None:
-            results = self.read('''SELECT * FROM JobsAnvils WHERE Guild_Id=%s''', guild_id)
         else:
-            results = self.read('''SELECT * FROM JobsAnvils WHERE Guild_Id=%s AND Id=%s''', (guild_id, id_))
+            results = self.read('''SELECT * FROM JobsAnvils WHERE Id=%s''', id_)
         anvils = []
         for result in results:
             anvils.append(JobAnvil(result[0], result[1], result[2], result[3], result[4], result[5], result[6]))

@@ -65,6 +65,14 @@ persistentTwitters = Twitters.PersistentTwitters(connection, persistentConfigura
 persistentConfiguration.set_client(client)
 
 
+def store_whole_registry(guild_id):
+    Annuary.store_annuary(annuary_path,
+                          characters=persistentCharacters.get_characters(guild_id),
+                          jobs=persistentJobs.get_jobs(guild_id),
+                          anvils=persistentJobs.get_anvils(guild_id),
+                          reputations=persistentReputations.get_reputations(guild_id))
+
+
 @client.map_input("aide/.*", "", "Legolas aide", "Afficher l'aide")
 async def general_help(message, words, **kwargs):
     if len(words) > 0:
@@ -125,7 +133,7 @@ async def process_twitter_account(message, words, **kwargs):
 @client.map_input("twitter/list", "twitter",
                   "Legolas twitter list",
                   "Lister les comptes et les salons liés")
-async def list_twtitter_accounts(message, words, **kwargs):
+async def list_twitter_accounts(message, words, **kwargs):
     msg = ""
     guild_id = message.guild.id
     twitter_accounts = persistentTwitters.get_accounts()
@@ -314,17 +322,17 @@ async def remove_administrators(message, words, **kwargs):
     await channel.send(msg)
 
 
-@client.map_input("nouveau/list", "nouveau", "Legolas nouveau list", "WIP")
+@client.map_input("nouveau/list", "admin", "Legolas nouveau list", "WIP")
 async def list_newbies_channels(message, words, **kwargs):
     await message.channel.send("WIP")
 
 
-@client.map_input("nouveau/ajouter", "nouveau", "Legolas nouveau ajouter", "WIP")
+@client.map_input("nouveau/ajouter", "admin", "Legolas nouveau ajouter", "WIP")
 async def list_newbies_channels(message, words, **kwargs):
     await message.channel.send("WIP")
 
 
-@client.map_input("nouveau/retirer", "nouveau", "Legolas nouveau retirer", "WIP")
+@client.map_input("nouveau/retirer", "admin", "Legolas nouveau retirer", "WIP")
 async def list_newbies_channels(message, words, **kwargs):
     await message.channel.send("WIP")
 
@@ -332,11 +340,16 @@ async def list_newbies_channels(message, words, **kwargs):
 @client.map_input("annuaire/excel", "annuaire", "Legolas annuaire excel",
                   "Recevoir en Message Privé l'annuaire sous format excel")
 async def send_excel_sheets(message, words, **kwargs):
-    channel = message.author
-    with open(annuary_path, "rb") as annuaire_stream:
-        msg = "Voici l'annuaire en format .xlsx !"
-        file = discord.File(annuaire_stream)
-    await channel.send(msg, file=file)
+    try:
+        with open(annuary_path, "rb") as annuaire_stream:
+            msg = "Voici l'annuaire en format .xlsx !"
+            file = discord.File(annuaire_stream)
+    except FileNotFoundError:
+        store_whole_registry(message.guild.id)
+        with open(annuary_path, "rb") as annuaire_stream:
+            msg = "Voici l'annuaire en format .xlsx !"
+            file = discord.File(annuaire_stream)
+    await message.author.send(msg, file=file)
 
 
 @client.map_input("annuaire/personnage/aide", "annuaire/personnage",
@@ -367,7 +380,6 @@ async def process_characters(message, words, **kwargs):
     msg = ""
     register_modified = False
     guild_id = message.guild.id
-    channel = message.channel
     action = kwargs["action"]
     character_name = kwargs["name"]
     can_modify_character = kwargs["is_admin"] or persistentCharacters.get_creator(character_name) == message.author.name
@@ -399,9 +411,10 @@ async def process_characters(message, words, **kwargs):
                 msg = "Votre personnage a été mis à jour !"
                 register_modified = True
     if register_modified:
-        # TODO Maybe this could deserve a decorator (we need to split this into methods then)
-        Annuary.storeAnnuary(annuary_path, characters=persistentCharacters.get_characters(guild_id))
-    await channel.send(msg)
+        store_whole_registry(guild_id)
+        await message.channel.send(msg)
+    else:
+        await Persistence_Utils.Bot.unauthorized(message)
 
 
 @client.map_input("annuaire/personnage/chercher/.*", "annuaire/personnage",
@@ -440,7 +453,7 @@ async def list_jobs(message, words, **kwargs):
         msg = "**Liste des artisans**\n"
     for job in jobs:
         msg += str(job)
-        anvils = persistentJobs.get_anvils(guild_id, job.id_)
+        anvils = persistentJobs.get_anvils(job.id_)
         for anvil in anvils:
             msg += str(anvil)
         msg += "\n"
@@ -460,7 +473,10 @@ async def remove_job(message, words, **kwargs):
         persistentJobs.remove_job(name, job)
         persistentJobs.remove_anvil(id_)
         msg = "Votre métier a été retiré "
-    await message.channel.send(msg)
+        store_whole_registry(message.guild.id)
+        await message.channel.send(msg)
+    else:
+        await Persistence_Utils.Bot.unauthorized(message)
 
 
 @client.map_input("annuaire/métier/{action}/.*", "annuaire/métier",
@@ -483,28 +499,57 @@ async def update_or_add_job(message, words, **kwargs):
     dic["guildId"] = guild_id
     job_anvil = Jobs.JobAnvil.from_dict(dic)
 
+    register_modified = False
     can_modify_job = kwargs["is_admin"] or persistentJobs.get_creator(job.name, job.job) == message.author.name
     if action == "ajouter":
         try:
             persistentJobs.add_job(job)
             persistentJobs.add_anvil(job_anvil)
             msg = "Votre métier a été ajouté !"
+            register_modified = True
         except psycopg2.IntegrityError:
             if can_modify_job:
                 persistentJobs.update_anvil(job_anvil)
                 msg = "Votre métier a été mis à jour !"
+                register_modified = True
     elif action == "màj":
         if can_modify_job:
             persistentJobs.update_anvil(job_anvil)
             msg = "Votre métier a été mis à jour !"
-    await message.channel.send(msg)
+            register_modified = True
+    if register_modified:
+        store_whole_registry(guild_id)
+        await message.channel.send(msg)
+    else:
+        await Persistence_Utils.Bot.unauthorized(message)
 
 
 @client.map_input("annuaire/métier/chercher/.*", "annuaire/métier",
                   "Legolas annuaire métier chercher [[accepted_jobs]] [[artisanat]]",
-                  "WIP")
+                  "Rechercher un métier dans l'annuaire")
 async def search_jobs(message, words, **kwargs):
-    await message.channel.send("WIP")
+    """TODO optimize the search"""
+    dic = Jobs.PersistentJobs.process_job_query([word for word in words if words.split(':') == 1])
+    dic["guildId"] = message.guild.id
+    jobs = persistentJobs.search_jobs(dic)
+    if len(jobs) == 0:
+        await message.channel.send("Pas de métiers correspondants dans l'annuaire !")
+        return
+    dic = Jobs.PersistentJobs.process_anvil_query([word for word in words if words.split(':') == 2])
+    dic["guildId"] = message.guild.id
+    anvils = persistentJobs.search_anvils(dic)
+    if len(anvils) == 0:
+        await message.channel.send("Pas de maîtrises correspondantes dans l'annuaire !")
+        return
+    anvils_map = {}
+    for anvil in anvils:
+        if anvil.id_ not in anvils_map:
+            anvils_map[anvil.id_] = []
+        anvils_map[anvil.id_].append(anvil)
+    msg = "**Résultats**\n"
+    for job in jobs:
+        msg += repr(job) + " " + repr(anvils_map[job.id_]) + "\n"
+    await message.channel.send(msg)
 
 
 @client.map_input("annuaire/réputation/aide", "annuaire/réputation",
@@ -521,32 +566,88 @@ async def help_characters(message, words, **kwargs):
                   "Legolas annuaire réputation list",
                   "Lister les réputations dans l'annuaire")
 async def list_reputations(message, words, **kwargs):
-    await message.channel.send("WIP")
+    reputations = persistentReputations.get_reputations(message.guild.id)
+    if len(reputations) == 0:
+        msg = "Pas de réputations enregistrées"
+    else:
+        msg = "**Réputations**\n" + ",\n".join([repr(reputation) for reputation in reputations])
+    await message.channel.send(msg)
 
 
 @client.map_input("annuaire/réputation/ajouter/.*", "annuaire/réputation",
-                  "Legolas annuaire réputation ajouter []",
-                  "WIP")
+                  "Legolas annuaire réputation ajouter name_ig faction niveau",
+                  "Ajouter une réputation dans l'annuaire")
 async def add_reputations(message, words, **kwargs):
-    await message.channel.send("WIP")
+    dic = Reputations.Reputation.process_creation(words)
+    dic["guildId"] = message.guild.id
+    dic["createdBy"] = message.author.name
+    dic["updatedBy"] = message.author.name
+    print(dic)
+    reputation = Reputations.Reputation.from_dict(dic)
+    registry_modified = False
+    msg = ""
+    try:
+        persistentReputations.add_reputation(reputation)
+        msg = "Votre réputation a été ajoutée !"
+        registry_modified = True
+    except psycopg2.IntegrityError:
+        if message.guild.owner == message.author or persistentConfiguration.is_admin(message.author, message.guild.id):
+            persistentReputations.update_reputation(reputation)
+            msg = "Votre réputation a été mise à jour !"
+            registry_modified = True
+    if registry_modified:
+        store_whole_registry(message.guild.id)
+        await message.channel.send(msg)
+    else:
+        await Persistence_Utils.Bot.unauthorized(message)
 
 
 @client.map_input("annuaire/réputation/màj/.*", "annuaire/réputation",
-                  "Legolas annuaire réputation màj []", "WIP")
+                  "Legolas annuaire réputation màj name_ig faction niveau ",
+                  "Modifier une réputation dans l'annuaire")
 async def update_reputations(message, words, **kwargs):
-    await message.channel.send("WIP")
+    dic = Reputations.Reputation.process_creation(words)
+    dic["guildId"] = message.guild.id
+    dic["createdBy"] = message.author.name
+    dic["updatedBy"] = message.author.name
+    reputation = Reputations.Reputation.from_dict(dic)
+    registry_modified = False
+    msg = ""
+    if message.guild.owner == message.author or persistentConfiguration.is_admin(message.author, message.guild.id):
+        persistentReputations.update_reputation(reputation)
+        msg = "Votre réputation a été mise à jour !"
+        registry_modified = True
+    if registry_modified:
+        store_whole_registry(message.guild.id)
+        await message.channel.send(msg)
+    else:
+        await Persistence_Utils.Bot.unauthorized(message)
 
 
-@client.map_input("annuaire/réputation/retirer/.*", "annuaire/réputation",
-                  "Legolas annuaire réputation retirer []", "WIP")
+@client.map_input("annuaire/réputation/retirer/{pseudo}/.*", "annuaire/réputation",
+                  "Legolas annuaire réputation retirer pseudo_ig [faction]", "WIP")
 async def remove_reputations(message, words, **kwargs):
-    await message.channel.send("WIP")
+    username = kwargs["pseudo"]
+    if len(words) == 0:
+        persistentReputations.remove_reputation(username)
+        await message.channel.send("Toutes les réputations ont été retirées")
+    else:
+        for faction in words:
+            persistentReputations.remove_reputation(username, faction)
+        await message.channel.send("Toutes les réputations transmises ont été retirées")
+    store_whole_registry(message.guild.id)
 
 
 @client.map_input("annuaire/réputation/chercher/.*", "annuaire/réputation",
-                  "Legolas annuaire réputation chercher []", "WIP")
+                  "Legolas annuaire réputation chercher [pseudo] [faction] [niveau]", "WIP")
 async def search_reputations(message, words, **kwargs):
-    await message.channel.send("WIP")
+    dic = Reputations.PersistentReputations.process_reputation_query(words)
+    reputations = persistentReputations.search_reputations(dic)
+    if len(reputations) == 0:
+        msg = "Pas de réputations correspondant à votre critère"
+    else:
+        msg = "**Réputations**\n" + ",\n".join([repr(reputation) for reputation in reputations])
+    await message.channel.send(msg)
 
 
 @client.map_input("calendrier/list", "calendrier",
@@ -561,7 +662,15 @@ async def list_events(message, words, **kwargs):
     if len(events) > 0:
         embed = discord.Embed(title="Calendrier")
         for event in events:
-            embed.add_field(name=event.name.replace("_", " "), value=repr(event), inline=False)
+            val = repr(event)
+            recalls = persistentCalendar.get_recalls(event.name, event.begin, guild_id)
+            if len(recalls) == 0:
+                val += "\n*Pas de rappels programmés*"
+            else:
+                val += "\n*" + ", ".join(recalls) + "*"
+            embed.add_field(name=event.name.replace("_", " "),
+                            value=val,
+                            inline=False)
     else:
         msg = "Pas d'évènements dans le calendrier !"
     await message.channel.send(msg, embed=embed)
@@ -629,8 +738,35 @@ async def process_event_modification(message, words, **kwargs):
     await message.channel.send(msg)
 
 
+@client.map_input("calendrier/rappel/{action}/{name}/{begin}/{delay}", "calendrier",
+                  "Legolas calendrier rappel [ajouter/retirer] \"nom\" jj/mm/aaaa [+/-]hh:mm:ss",
+                  "Ajouter/retirer un rappel pour l'évènement avec le nom et la date de début avant(-) ou après(+)")
+@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+async def add_recall(message, words, **kwargs):
+    name = kwargs["name"]
+    splits = kwargs["begin"].split('/')
+    begin = datetime.datetime(day=int(splits[0]), month=int(splits[1]), year=int(splits[2])).timestamp()
+
+    augmented_delay = kwargs["delay"]
+    if augmented_delay[0] == "+" or augmented_delay[0] == "-":
+        augmented_delay = augmented_delay[1:]
+    splits = augmented_delay.split(':')
+    delay = datetime.timedelta(hours=int(splits[0]), minutes=int(splits[1]), seconds=int(splits[2]))
+    if kwargs["delay"][0] == "-":
+        delay = -delay
+    if kwargs["action"] == "ajouter":
+        persistentCalendar.add_recall(Calendar.Recall(name, begin, delay))
+    elif kwargs["action"] == "retirer":
+        persistentCalendar.remove_recall(name, begin, delay)
+    else:
+        raise Persistence_Utils.CommandException
+
+
 pprint.pprint(client.mapping)
+
+
 # pprint.pprint(client.help)
+
 
 @client.event
 async def on_member_join(member):

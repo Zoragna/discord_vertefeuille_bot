@@ -19,15 +19,15 @@ class Reputation(Element):
         "connaissance": {"min": 10000, "max": 30000},
         "ami": {"min": 30000, "max": 55000},
         "allié": {"min": 55000, "max": 85000},
-        "aparenté": {"min": 85000, "max": 130000},
+        "frère": {"min": 85000, "max": 130000},
         "respecté": {"min": 130000, "max": 190000},
         "honoré": {"min": 190000, "max": 280000},
-        "célébré": {"min": 280000, "max": sys.maxsize},
+        "acclamé": {"min": 280000, "max": sys.maxsize},
     }
 
-    rows = [("createdBy", str), ("updatedBy", str), ("guildId", int), ("name", str), ("level", int), ("faction", str)]
+    rows = [("createdBy", str), ("updatedBy", str), ("guildId", int), ("name", str), ("level", str), ("faction", str)]
 
-    def __init__(self, creator, updator, guild_id, name, level, faction):
+    def __init__(self, creator, updator, name, faction, level, guild_id):
         self.created_by = creator
         self.updated_by = updator
         self.guild_id = guild_id
@@ -37,8 +37,8 @@ class Reputation(Element):
 
     def __repr__(self):
         representation = self.name + ", "
-        representation += self.level + " chez "
-        representation += self.faction
+        representation += self.level.capitalize() + " auprès de "
+        representation += self.faction.replace("_", " ")
         return representation
 
     @staticmethod
@@ -56,7 +56,7 @@ class Reputation(Element):
     @classmethod
     def from_dict(cls, dic):
         if Reputation.validate(dic, Reputation.rows):
-            return cls(dic["createdBy"], dic["updatedBy"], dic["guildId"], dic["name"], dic["level"], dic["faction"])
+            return cls(dic["createdBy"], dic["updatedBy"], dic["name"], dic["level"], dic["faction"], dic["guildId"])
         else:
             raise InitializationException()
 
@@ -69,8 +69,11 @@ class PersistentReputations(Persistent):
                    (reputation.created_by, reputation.updated_by, reputation.guild_id,
                     reputation.name, reputation.faction, reputation.level))
 
-    def remove_reputation(self, name, faction):
-        self.write('''DELETE FORM Reputations WHERE "Name"=%s ANd Faction=%s''',(name, faction))
+    def remove_reputation(self, name, faction=None):
+        if faction is not None:
+            self.write('''DELETE FROM Reputations WHERE "Name"=%s AND Faction=%s''', (name, faction))
+        else:
+            self.write('''DELETE FROM Reputations WHERE "Name"=%s''', name)
 
     def update_reputation(self, reputation):
         self.write('''UPDATE Reputations 
@@ -78,6 +81,16 @@ class PersistentReputations(Persistent):
                        WHERE "Name"=%s ANd Faction=%s''',
                    (reputation.updated_by, reputation.level,
                     reputation.name, reputation.faction))
+
+    def get_reputations(self, guild_id=None):
+        if guild_id is None:
+            results = self.read('''SELECT * FROM Reputations''', ())
+        else:
+            results = self.read('''SELECT * FROM Reputations WHERE GuildId=%s''', guild_id)
+        reputations = []
+        for result in results:
+            reputations.append(Reputation(result[0], result[1], result[2], result[3], result[4], result[5]))
+        return reputations
 
     @staticmethod
     def process_reputation_query(words):
@@ -118,7 +131,7 @@ class PersistentReputations(Persistent):
                 for val in value:
                     objects += (val,)
             else:
-                query += query_key+"=%s"
+                query += query_key + "=%s"
                 objects += (value,)
         results = self.read(query, objects)
         reputations = []
