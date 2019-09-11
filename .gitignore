@@ -1,6 +1,7 @@
 # Don't track content of these folders
 .idea/
 venv/
+/src/Utils/__pycache__/*
 
 # Produced files #
 ##################

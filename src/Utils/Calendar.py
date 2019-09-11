@@ -131,7 +131,6 @@ class PersistentCalendars(Persistent):
     def remove_event(self, name, begin):
         self.write('''DELETE FROM Calendar WHERE "Name"=%s AND "Begin"=%s''', (name, begin))
         _id = name + str(begin)
-        self.scheduler.remove_job(_id)
         self.remove_recall(name, begin)
 
     def update_event(self, event: Event):
@@ -205,8 +204,8 @@ class PersistentCalendars(Persistent):
         for job in self.scheduler.get_jobs():
             if job.id.split('@')[0] in beginnings:
                 name = job.id.split('#')[0]
-                begin = job.id.split('#')[1].split('@')[0]
-                delay = job.id.split('@')[1]
+                begin = int(job.id.split('#')[1].split('@')[0])
+                delay = int(job.id.split('@')[1])
                 if event_name is None and event_begin is None:
                     recalls.append(Recall(name, begin, delay))
                 elif event_name == name and event_begin == begin:

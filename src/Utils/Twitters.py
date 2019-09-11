@@ -216,20 +216,20 @@ class TwitterListener(tweepy.StreamListener):
                 elected_twitter_channels = candidates["FILTERED"]
             elif "NO_FILTERS" in candidates:
                 elected_twitter_channels = candidates["NO_FILTERS"]
-            try:
-                for twitter_channel in elected_twitter_channels:
+            for twitter_channel in elected_twitter_channels:
+                try:
                     coroutine = self.client.get_channel(twitter_channel.channel_id).send("@everyone", embed=embed)
                     fut = asyncio.run_coroutine_threadsafe(coroutine, self.client.loop)
                     fut.result()
-            except discord.HTTPException:
-                msg = "[" + str(datetime.datetime.today()) + "][" + twitter_channel.guild.name + "]"
-                msg += "Could not sent '" + status_text + "' from '" + status_screen_name + "'"
-                msg += " on channel '" + twitter_channel.name + "'"
-                error_msg = msg + "\n" + traceback.format_exc()
+                except discord.HTTPException:
+                    msg = "[" + str(datetime.datetime.today()) + "][" + twitter_channel.guild.name + "]"
+                    msg += "Could not sent '" + status_text + "' from '" + status_screen_name + "'"
+                    msg += " on channel '" + twitter_channel.name + "'"
+                    error_msg = msg + "\n" + traceback.format_exc()
 
-                coroutine = self.persistentConfiguration.warn_error(error_msg, twitter_channel.guild.id)
-                future = asyncio.run_coroutine_threadsafe(coroutine, self.client.loop)
-                future.result()
+                    coroutine = self.persistentConfiguration.warn_error(error_msg, twitter_channel.guild.id)
+                    future = asyncio.run_coroutine_threadsafe(coroutine, self.client.loop)
+                    future.result()
 
     def on_error(self, status_code):
         if status_code == 420:

@@ -25,6 +25,24 @@ CREATE TABLE IF NOT EXISTS Reputations (
         GuildId bigint NOT NULL,
         PRIMARY KEY("Name", Faction));
 
+CREATE TABLE IF NOT EXISTS Allegiances (
+        CreatedBy text NOT NULL,
+        UpdatedBy text NOT NULL,
+        "Name" varchar(100),
+        Allegiance varchar(100),
+        Level int,
+        GuildId bigint NOT NULL,
+        PRIMARY KEY("Name", Allegiance));
+
+CREATE TABLE IF NOT EXISTS Craftsmanship (
+        CreatedBy text NOT NULL,
+        UpdatedBy text NOT NULL,
+        "Name" varchar(100),
+        Guild varchar(100),
+        Level text,
+        GuildId bigint NOT NULL,
+        PRIMARY KEY("Name", Guild));
+
 CREATE TABLE IF NOT EXISTS ReportId (
         CreatedBy text NOT NULL,
         GuildId bigint NOT NULL,

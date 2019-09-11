@@ -154,7 +154,7 @@ async def list_twitter_accounts(message, words, **kwargs):
 
 
 @client.map_input("twitter/filtre/{twitter_user}/retirer/{sentence}/.*", "twitter",
-                  "Legolas twitter filtre <twitter_user> retirer \"texte\" #<salon> [#<salon> ...]",
+                  "Legolas twitter filtre <twitter_user> retirer [\"texte\"] #<salon> [#<salon> ...]",
                   "Retirer un filtre pour un salon pour un compte twitter")
 @Persistence_Utils.Bot.is_admin(persistentConfiguration)
 async def remove_twitter_filter(message, words, **kwargs):
@@ -663,6 +663,7 @@ async def list_events(message, words, **kwargs):
         embed = discord.Embed(title="Calendrier")
         for event in events:
             val = repr(event)
+            # TODO add a column that in Calendar to check how many recalls exist
             recalls = persistentCalendar.get_recalls(event.name, event.begin, guild_id)
             if len(recalls) == 0:
                 val += "\n*Pas de rappels programmés*"
@@ -701,9 +702,9 @@ async def next_event(message, words, **kwargs):
 async def remove_event(message, words, **kwargs):
     name = kwargs["name"]
     splits = kwargs["begin_date"].split('/')
-    date = datetime.datetime(splits[2], splits[1], splits[0]).timestamp()
+    date = datetime.datetime(int(splits[2]), int(splits[1]), int(splits[0])).timestamp()
     persistentCalendar.remove_event(name, date)
-    msg = "L'évènement du '%s' commençant le %s a été retiré" % (name, splits)
+    msg = "L'évènement du '%s' commençant le %s a été retiré" % (name, kwargs["begin_date"])
     await message.channel.send(msg)
 
 
@@ -751,7 +752,7 @@ async def add_recall(message, words, **kwargs):
     if augmented_delay[0] == "+" or augmented_delay[0] == "-":
         augmented_delay = augmented_delay[1:]
     splits = augmented_delay.split(':')
-    delay = datetime.timedelta(hours=int(splits[0]), minutes=int(splits[1]), seconds=int(splits[2]))
+    delay = datetime.timedelta(hours=int(splits[0]), minutes=int(splits[1]), seconds=int(splits[2])).total_seconds()
     if kwargs["delay"][0] == "-":
         delay = -delay
     if kwargs["action"] == "ajouter":

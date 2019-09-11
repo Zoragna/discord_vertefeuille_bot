@@ -68,7 +68,10 @@ class Bot(discord.Client):
                     await Bot.not_understood(message)
                     return
         if len(words) == i + 1 and not isinstance(tmp, FunctionType):
-            await Bot.launch_input(tmp[".*"], self.configurator, message, [], **kwargs)
+            if ".*" in tmp:
+                await Bot.launch_input(tmp[".*"], self.configurator, message, [], **kwargs)
+            else:
+                await Bot.not_understood(message)
         else:
             await Bot.launch_input(tmp, self.configurator, message, words[i+1:], **kwargs)
 
