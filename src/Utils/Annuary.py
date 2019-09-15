@@ -118,7 +118,7 @@ def store_annuary(path, **kwargs):
         ws_reps = wb.create_sheet(title="Réputations")
 
         for idx, faction in enumerate(Reputation.accepted_factions):
-            ws_reps[openpyxl.utils.get_column_letter(3 + idx) + "1"] = faction.capitalize()
+            ws_reps[openpyxl.utils.get_column_letter(3 + idx) + "1"] = faction.capitalize().replace('_', ' ')
 
         chars_map = {}
         for reputation in kwargs["reputations"]:
@@ -133,7 +133,7 @@ def store_annuary(path, **kwargs):
             for idx, faction in enumerate(Reputation.accepted_factions):
                 for reputation in reputations:
                     if reputation.faction == faction:
-                        ws_reps[openpyxl.utils.get_column_letter(3 + idx) + str(i)] = reputation.level.capitalize()
+                        ws_reps[openpyxl.utils.get_column_letter(3 + 1 + idx) + str(i)] = reputation.level.capitalize()
                         break
         initial_color = (128, 0, 0)
         final_color = (153, 255, 102)
@@ -147,7 +147,7 @@ def store_annuary(path, **kwargs):
             fill = openpyxl.styles.PatternFill(bgColor=color)
             dxf = DifferentialStyle(fill=fill)
             rule = Rule(type="containsText", operator="containsText", text=level.capitalize(), dxf=dxf)
-            ws_reps.conditional_formatting.add("A1:" + openpyxl.utils.get_column_letter(3 + idx) + str(i), rule)
+            ws_reps.conditional_formatting.add("C2:" + openpyxl.utils.get_column_letter(3 + idx) + str(i), rule)
 
     try:
         wb.save(filename=path)

@@ -3,6 +3,7 @@ import datetime
 import discord
 import pprint
 
+import psycopg2
 from psycopg2.errors import lookup
 from functools import wraps
 from types import FunctionType
@@ -20,6 +21,7 @@ class Bot(discord.Client):
         self.configurator = configurator
         self.caller = "Legolas"
         self.help = {}
+        self.need_admin = []
 
     @staticmethod
     async def empty_func(message, **kwargs):
@@ -62,39 +64,44 @@ class Bot(discord.Client):
                     kwargs[found_key] = word
                     tmp = tmp["{"+found_key+"}"]
                 elif ".*" in tmp:
-                    await Bot.launch_input(tmp[".*"], self.configurator, message, words[i:], **kwargs)
+                    await Bot.launch_input(tmp[".*"], self.configurator, self.need_admin, message, words[i:], **kwargs)
                     return
                 else:
                     await Bot.not_understood(message)
                     return
         if len(words) == i + 1 and not isinstance(tmp, FunctionType):
             if ".*" in tmp:
-                await Bot.launch_input(tmp[".*"], self.configurator, message, [], **kwargs)
+                await Bot.launch_input(tmp[".*"], self.configurator, self.need_admin, message, [], **kwargs)
             else:
                 await Bot.not_understood(message)
         else:
-            await Bot.launch_input(tmp, self.configurator, message, words[i+1:], **kwargs)
+            await Bot.launch_input(tmp, self.configurator, self.need_admin, message, words[i+1:], **kwargs)
 
     @staticmethod
-    async def launch_input(func, configurator, message: discord.Message, words, **kwargs):
+    async def launch_input(func, configurator, need_admin, message: discord.Message, words, **kwargs):
         channel = message.channel
         print(func)
         print(words)
         print(kwargs)
+        has_failed = True
         try:
             kwargs["is_admin"] = configurator.is_admin(message.author, message.guild.id)
-            await func(message, words, **kwargs)
-        except (IndexError, CommandException):
+            if func in need_admin and not kwargs["is_admin"]:
+                await Bot.unauthorized(message, **kwargs)
+            else:
+                await func(message, words, **kwargs)
+            has_failed = False
+        except (IndexError, CommandException) as e:
             await channel.send("Il semblerait que je ne puisse pas faire suivre votre requête !")
-        except InitializationException:
+        except InitializationException as e:
             await channel.send("Votre demande ne suit pas le format attendu.")
-        except lookup("25P02"):
+        except lookup("25P02") as e:
             await channel.send("Une entrée existe déjà pour cet objet")
         except Exception as e:
             msg = "Erreur, l'administrateur et d'autres personnes ont été notifiées !"
             await message.channel.send(msg)
-
-            msg = "[" + message.guild.name + "][ERROR]" + str(e)
+        if has_failed:
+            msg = "[" + message.guild.name + "][ERROR]"
             error_msg = msg + "\n" + traceback.format_exc() + "\ncaused by: '" + message.content + "'"
             await configurator.warn_error(error_msg, message.guild.id)
 
@@ -109,19 +116,12 @@ class Bot(discord.Client):
             self.add_help([section], command, description)
         return mapping_input_decorator
 
-    def is_admin(self):
+    def is_admin(self, configurator=None):
         def decorator_is_admin(func):
             @wraps(func)
-            def wrapper_is_admin(message, words, **kwargs):
-                is_admin = message.author.name == message.guild.owner.name or \
-                    self.configurator.is_admin(message.author, message.guild.id)
-                if is_admin:
-                    return func(message, words, **kwargs)
-                else:
-                    return Bot.unauthorized(message, **kwargs)
-
-            return wrapper_is_admin
-
+            def wrapper_is_admin(*args, **kwargs):
+                return func(*args, **kwargs)
+            self.need_admin.append(func)
         return decorator_is_admin
 
     def process_query(self, query, func):
@@ -215,7 +215,7 @@ class Persistent(object):
             self.cursor.execute(query, record)
             self.connection.commit()
             print("[" + str(datetime.datetime.today()) + "]" + query % record)
-        except lookup("25P02") as e:
+        except psycopg2.IntegrityError as e:
             self.cursor.execute("ROLLBACK")
             self.connection.commit()
             print("[" + str(datetime.datetime.today()) + "] ROLLBACK | " + query % record)

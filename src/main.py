@@ -69,7 +69,7 @@ def store_whole_registry(guild_id):
     Annuary.store_annuary(annuary_path,
                           characters=persistentCharacters.get_characters(guild_id),
                           jobs=persistentJobs.get_jobs(guild_id),
-                          anvils=persistentJobs.get_anvils(guild_id),
+                          anvils=persistentJobs.get_anvils(),
                           reputations=persistentReputations.get_reputations(guild_id))
 
 
@@ -99,7 +99,7 @@ async def general_help(message, words, **kwargs):
 @client.map_input("twitter/{account}/{action}/.*", "twitter",
                   "Legolas twitter <twitter_user> [ajouter/retirer] #<salon> [#<salon> ...]",
                   "Ajouter ou retirer un salon pour la diffusion d'un compte twitter")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def process_twitter_account(message, words, **kwargs):
     account = kwargs["account"]
     action = kwargs["action"]
@@ -156,7 +156,7 @@ async def list_twitter_accounts(message, words, **kwargs):
 @client.map_input("twitter/filtre/{twitter_user}/retirer/{sentence}/.*", "twitter",
                   "Legolas twitter filtre <twitter_user> retirer [\"texte\"] #<salon> [#<salon> ...]",
                   "Retirer un filtre pour un salon pour un compte twitter")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def remove_twitter_filter(message, words, **kwargs):
     modified_channels = message.channel_mentions
     twitter_channels = persistentTwitters.get_channels(kwargs["twitter_user"])
@@ -182,7 +182,7 @@ async def remove_twitter_filter(message, words, **kwargs):
 @client.map_input("twitter/filtre/{twitter_user}/ajouter/{sentence}/.*", "twitter",
                   "Legolas twitter filtre <twitter_user> [ajouter/retirer] \"texte\" #<salon> [#<salon> ...]",
                   "Ajouter un filtre pour un salon pour un compte twitter")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def add_twitter_filter(message, words, **kwargs):
     modified_channels = message.channel_mentions
     twitter_user = kwargs["twitter_user"]
@@ -230,7 +230,7 @@ async def list_error_reporters(message, words, **kwargs):
 @client.map_input("erreur/ajouter/.*", "admin",
                   "Legolas erreur ajouter @Utilisateur [@Utilisateur ...]",
                   "Ajouter des personnes qui reçoivent les rapports d'erreur du bot")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def add_error_reporter(message, words, **kwargs):
     channel = message.channel
     msg = "Vous n'avez pas préciser de personnes à ajouter !"
@@ -251,7 +251,7 @@ async def add_error_reporter(message, words, **kwargs):
 @client.map_input("erreur/retirer/.*", "admin",
                   "Legolas erreur retirer [@Utilisateur ...]",
                   "Retirer aux personnes qui reçoivent les rapports d'erreur du bot")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def remove_error_reporter(message, words, **kwargs):
     guild_id = message.guild_id
     channel = message.channel
@@ -270,7 +270,7 @@ async def remove_error_reporter(message, words, **kwargs):
 @client.map_input("admin/list", "admin",
                   "Legolas admin list",
                   "Lister les rôles qui ont des droits supplémentaires auprès du bot")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def list_administrators(message, words, **kwargs):
     channel = message.channel
     guild_id = message.guild.id
@@ -285,7 +285,7 @@ async def list_administrators(message, words, **kwargs):
 @client.map_input("admin/ajouter/.*", "admin",
                   "Legolas admin ajouter @Role [@Role ...]",
                   "Ajouter des rôles qui ont des droits supplémentaires auprès du bot")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def add_administrators(message, words, **kwargs):
     guild_id = message.guild.id
     channel = message.channel
@@ -306,7 +306,7 @@ async def add_administrators(message, words, **kwargs):
 @client.map_input("admin/retirer/.*", "admin",
                   "Legolas admin retirer [@Role ...]",
                   "Retirer des rôles qui ont des droits supplémentaires auprès du bot")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def remove_administrators(message, words, **kwargs):
     guild_id = message.guild.id
     channel = message.channel
@@ -444,18 +444,26 @@ async def help_characters(message, words, **kwargs):
 @client.map_input("annuaire/métier/list", "annuaire/métier",
                   "Legolas annuaire métier list",
                   "Lister les métiers présents dans l'annuaire")
-async def list_jobs(message, words, **kwargs):
+async def list_jobs(message:discord.Message, words, **kwargs):
     guild_id = message.guild.id
     channel = message.channel
     msg = "Pas de métiers enregistrés"
     jobs = persistentJobs.get_jobs(guild_id)
+    print("there are %d jobs in the db" % len(jobs))
+    bronze = ""
+    gold = ""
+    for emoji in message.guild.emojis:
+        if emoji.name == "bronze":
+            bronze = str(emoji)
+        elif emoji.name == "or" or emoji.name == "gold":
+            gold = str(emoji)
     if len(jobs) > 0:
         msg = "**Liste des artisans**\n"
     for job in jobs:
-        msg += str(job)
+        msg += str(job) + " | "
         anvils = persistentJobs.get_anvils(job.id_)
-        for anvil in anvils:
-            msg += str(anvil)
+        print("there are %d anvils for this job" % len(anvils))
+        msg += ", ".join([anvil.repr_emoji(bronze, gold) for anvil in anvils])
         msg += "\n"
     await channel.send(msg)
 
@@ -480,7 +488,7 @@ async def remove_job(message, words, **kwargs):
 
 
 @client.map_input("annuaire/métier/{action}/.*", "annuaire/métier",
-                  "Legolas annuaire métier pseudo_ig [accepted_jobs] [[accepted_tier]:[or/bronze] ...]",
+                  "Legolas annuaire métier [ajouter/màj] pseudo_ig [accepted_jobs] [[accepted_tier]:[or/bronze] ...]",
                   "Ajouter ou mettre à jour un métier dans l'annuaire, optionnellement ses enclumes.")
 async def update_or_add_job(message, words, **kwargs):
     guild_id = message.guild.id
@@ -491,34 +499,52 @@ async def update_or_add_job(message, words, **kwargs):
     dic["createdBy"] = message.author.name
     dic["updatedBy"] = message.author.name
     dic["guildId"] = guild_id
+    print(dic)
     job = Jobs.Job.from_dict(dic)
 
     dic = Jobs.JobAnvil.process_creation([word for word in words if len(word.split(':')) == 2])
     dic["createdBy"] = message.author.name
     dic["updatedBy"] = message.author.name
-    dic["guildId"] = guild_id
+    dic["id"] = -1
+    print(dic)
+    print(Jobs.JobAnvil.validate(dic, Jobs.JobAnvil.rows))
     job_anvil = Jobs.JobAnvil.from_dict(dic)
 
+    print("!!!")
     register_modified = False
     can_modify_job = kwargs["is_admin"] or persistentJobs.get_creator(job.name, job.job) == message.author.name
+    print(kwargs["is_admin"])
+    print(persistentJobs.get_creator(job.name, job.job))
+    print(message.author.name)
     if action == "ajouter":
         try:
-            persistentJobs.add_job(job)
+            id_ = persistentJobs.add_job(job)
+            job_anvil.id_ = id_
             persistentJobs.add_anvil(job_anvil)
             msg = "Votre métier a été ajouté !"
             register_modified = True
         except psycopg2.IntegrityError:
-            if can_modify_job:
+            print("integrity erorr")
+            id_ = persistentJobs.get_job_id(job.name, job.job)
+            if id_ < 0:
+                msg = "Pas de métier correspondant existant pour ajouter ces maîtrises."
+            elif can_modify_job:
+                job_anvil.id_ = id_
                 persistentJobs.update_anvil(job_anvil)
                 msg = "Votre métier a été mis à jour !"
                 register_modified = True
     elif action == "màj":
-        if can_modify_job:
+        job_anvil.id_ = persistentJobs.get_job_id(job.name, job.job)
+        if job_anvil.id_ < 0:
+            msg = "Pas de métier correspondant existant pour ajouter ces maîtrises."
+        elif can_modify_job:
             persistentJobs.update_anvil(job_anvil)
             msg = "Votre métier a été mis à jour !"
             register_modified = True
     if register_modified:
         store_whole_registry(guild_id)
+        await message.channel.send(msg)
+    elif msg != "":
         await message.channel.send(msg)
     else:
         await Persistence_Utils.Bot.unauthorized(message)
@@ -698,7 +724,7 @@ async def next_event(message, words, **kwargs):
 @client.map_input("calendrier/retirer/{name}/{begin_date}", "calendrier",
                   "Legolas calendrier retirer \"nom\" jj/mm/aaaa",
                   "Retirer l'évènement nommé commençant au jour donné")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def remove_event(message, words, **kwargs):
     name = kwargs["name"]
     splits = kwargs["begin_date"].split('/')
@@ -711,7 +737,7 @@ async def remove_event(message, words, **kwargs):
 @client.map_input("calendrier/{action}/.*", "calendrier",
                   "Legolas calendrier [ajouter/màj] \"nom\" jj/mm/aaa jj/mm/aaaa \"description\" #channel_de_difussion",
                   "Ajouter un évènement au calendrier (le nom est plus court que la description)")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def process_event_modification(message, words, **kwargs):
     guild_id = message.guild.id
     msg = "Vous n'avez pas mentionné le canal dans lequel votre évènement sera annoncé ! (le midi la veille)"
@@ -742,7 +768,7 @@ async def process_event_modification(message, words, **kwargs):
 @client.map_input("calendrier/rappel/{action}/{name}/{begin}/{delay}", "calendrier",
                   "Legolas calendrier rappel [ajouter/retirer] \"nom\" jj/mm/aaaa [+/-]hh:mm:ss",
                   "Ajouter/retirer un rappel pour l'évènement avec le nom et la date de début avant(-) ou après(+)")
-@Persistence_Utils.Bot.is_admin(persistentConfiguration)
+@client.is_admin(persistentConfiguration)
 async def add_recall(message, words, **kwargs):
     name = kwargs["name"]
     splits = kwargs["begin"].split('/')

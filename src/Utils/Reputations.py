@@ -72,7 +72,7 @@ class Reputation(Element):
     @classmethod
     def from_dict(cls, dic):
         if Reputation.validate(dic, Reputation.rows):
-            return cls(dic["createdBy"], dic["updatedBy"], dic["name"], dic["level"], dic["faction"], dic["guildId"])
+            return cls(dic["createdBy"], dic["updatedBy"], dic["name"], dic["faction"], dic["level"], dic["guildId"])
         else:
             raise InitializationException()
 

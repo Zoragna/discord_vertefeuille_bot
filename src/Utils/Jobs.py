@@ -7,9 +7,9 @@ class Job(Element):
     response_rows = [("createdBy", str), ("updatedBy", str), ("guildId", int), ("job", str), ("name", str), ("id", int)]
 
     accepted_jobs = ["bijoutier", "cuisinier", "érudit", "fabricants_d'armes", "fermier", "ferronier", "forestier",
-                     "prosepcteur", "tailleur"]
+                     "prospecteur", "tailleur"]
 
-    def __init__(self, creator, updator, guild_id, job, name, id_=-1):
+    def __init__(self, creator, updator, job, name, guild_id, id_=-1):
         self.created_by = creator
         self.updated_by = updator
         self.guild_id = guild_id
@@ -34,36 +34,53 @@ class Job(Element):
     @classmethod
     def from_dict(cls, dic):
         if Job.validate(dic, Job.response_rows):
-            return cls(dic["createdBy"], dic["updatedBy"], dic["guildId"], dic["job"], dic["name"], dic["id"])
+            return cls(dic["createdBy"], dic["updatedBy"], dic["job"], dic["name"], dic["guildId"], dic["id"])
         elif Job.validate(dic, Job.request_rows):
-            return cls(dic["createdBy"], dic["updatedBy"], dic["guildId"], dic["job"], dic["name"])
+            return cls(dic["createdBy"], dic["updatedBy"], dic["job"], dic["name"], dic["guildId"])
         else:
             raise InitializationException()
 
 
 class JobAnvil(Element):
-    rows = [("createdBy", str), ("updatedBy", str), ("guildId", int), ("id", int), ("tier", str),
+    rows = [("createdBy", str), ("updatedBy", str), ("id", int), ("tier", str),
             ("bronze", bool), ("gold", bool)]
 
-    accepted_tiers = ["apprenti", "compagnon", "expert", "artisan", "maître", "suprême", "ouestfolde", "anòrien"]
+    accepted_tiers = ["apprenti", "compagnon", "expert", "artisan", "maître", "suprême", "ouestfolde", "estemnet"]
 
-    def __init__(self, creator, updator, guild_id, id_, tier, bronze, gold):
+    def __init__(self, creator, updator, id_, tier, bronze, gold):
         self.created_by = creator
         self.updated_by = updator
-        self.guild_id = guild_id
         self.id_ = id_
         self.tier = tier
         self.bronze = bronze
         self.gold = gold
+
+    def repr_emoji(self, bronze="🥉", gold="🥇"):
+        if gold is None and bronze is None:
+            return repr(self)
+        if bronze == "":
+            bronze = "🥉"
+        if gold == "":
+            gold = "🥇"
+        representation = ""
+        print(self.bronze, self.gold)
+        if self.bronze or self.gold:
+            representation += self.tier + " : "
+        if self.bronze:
+            representation += bronze
+        if self.gold:
+            representation += gold
+        print(representation)
+        return representation
 
     def __repr__(self):
         representation = ""
         if self.bronze or self.gold:
             representation += self.tier + " : "
         if self.bronze:
-            representation += ":bronze:"
+            representation += "bronze "
         if self.gold:
-            representation += ":or"
+            representation += "gold "
         return representation
 
     @staticmethod
@@ -85,8 +102,7 @@ class JobAnvil(Element):
     @classmethod
     def from_dict(cls, dic):
         if JobAnvil.validate(dic, JobAnvil.rows):
-            return cls(dic["createdBy"], dic["updatedBy"], dic["guildId"], dic["id"], dic["tier"],
-                       dic["bronze"], dic["gold"])
+            return cls(dic["createdBy"], dic["updatedBy"], dic["id"], dic["tier"], dic["bronze"], dic["gold"])
         else:
             raise InitializationException()
 
@@ -96,11 +112,13 @@ class PersistentJobs(Persistent):
     def add_job(self, job):
         self.write('''INSERT INTO Jobs (CreatedBy, UpdatedBy, GuildId, Job, "Name") VALUES (%s, %s, %s, %s, %s)''',
                    (job.created_by, job.updated_by, job.guild_id, job.job, job.name))
+        return self.get_job_id(job.name, job.job)
 
     def get_job_id(self, name, job):
         results = self.read('''SELECT * FROM Jobs WHERE "Name"=%s AND Job=%s''', (name, job))
+        print("jobs with '%s, %s' : %d" % (name, job, len(results)))
         if len(results) == 1:
-            return results[0][5]
+            return results[0][4]
         else:
             return -1
 
@@ -116,13 +134,13 @@ class PersistentJobs(Persistent):
             results = self.read('''SELECT * FROM Jobs WHERE GuildId=%s''', guild_id)
         jobs = []
         for result in results:
-            jobs.append(Job(result[0], result[1], result[2], result[3], result[4], result[5]))
+            jobs.append(Job(result[0], result[1], result[2], result[3], result[5], result[4]))
         return jobs
 
     def get_creator(self, name, job):
         results = self.read('''SELECT * FROM Jobs WHERE "Name"=%s AND Job=%s''', (name, job))
         if len(results) == 1:
-            return results[0][3]
+            return results[0][0]
         else:
             return ""
 
@@ -173,13 +191,13 @@ class PersistentJobs(Persistent):
         results = self.read(query, objects)
         jobs = []
         for result in results:
-            jobs.append(Job(result[0], result[1], result[2], result[3], result[4], result[5]))
+            jobs.append(Job(result[0], result[1], result[2], result[3], result[5], result[4]))
         return jobs
 
     def add_anvil(self, anvil: JobAnvil):
-        self.write('''INSERT INTO JobsAnvils 
-                    (CreatedBy, UpdatedBy, Id, Tier, Bronze, Gold) VALUES (%s,%s,%s,%s,%s,%s)'''
-                   , (anvil.created_by, anvil.updated_by, anvil.id_, anvil.tier, anvil.bronze, anvil.gold))
+        self.write('''INSERT INTO JobsAnvils (CreatedBy, UpdatedBy, Id, Tier, Bronze, Gold) 
+                   VALUES (%s,%s,%s,%s,%s,%s)''',
+                   (anvil.created_by, anvil.updated_by, anvil.id_, anvil.tier, anvil.bronze, anvil.gold))
 
     def remove_anvil(self, id_, tier=None):
         if tier is None:
@@ -200,8 +218,11 @@ class PersistentJobs(Persistent):
         else:
             results = self.read('''SELECT * FROM JobsAnvils WHERE Id=%s''', id_)
         anvils = []
-        for result in results:
-            anvils.append(JobAnvil(result[0], result[1], result[2], result[3], result[4], result[5], result[6]))
+        if results is not None:
+            for result in results:
+                print("...")
+                print(result)
+                anvils.append(JobAnvil(result[0], result[1], result[2], result[3], result[4], result[5]))
         return anvils
 
     @staticmethod
@@ -211,7 +232,7 @@ class PersistentJobs(Persistent):
             splits = word.split(':')
             if len(splits) == 2:
                 dic[splits[0]] = splits[1].split(',')
-            else :
+            else:
                 dic["id"] = int(word)
         return dic
 
@@ -250,5 +271,5 @@ class PersistentJobs(Persistent):
         results = self.read(query, objects)
         anvils = []
         for result in results:
-            anvils.append(JobAnvil(result[0], result[1], result[2], result[3], result[4], result[5], result[6]))
+            anvils.append(JobAnvil(result[0], result[1], result[2], result[3], result[4], result[5]))
         return anvils
