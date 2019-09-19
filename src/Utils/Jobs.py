@@ -237,7 +237,7 @@ class PersistentJobs(Persistent):
     @staticmethod
     def find_anvils_gold(anvils, tier):
         for anvil in anvils:
-            if anvil.tier = tier:
+            if anvil.tier == tier:
                 return anvil.gold
         return False
 
