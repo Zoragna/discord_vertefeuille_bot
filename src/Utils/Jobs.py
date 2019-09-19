@@ -198,14 +198,23 @@ class PersistentJobs(Persistent):
         self.write('''INSERT INTO JobsAnvils (CreatedBy, UpdatedBy, Id, Tier, Bronze, Gold) 
                    VALUES (%s,%s,%s,%s,%s,%s)''',
                    (anvil.created_by, anvil.updated_by, anvil.id_, anvil.tier, anvil.bronze, anvil.gold))
-        self.cascade_anvil_add(anvil)
+        anvil_tier_id = JobAnvil.accepted_tiers.index(anvil.tier)
+        for tier in JobAnvil.accepted_tiers[:anvil_tier_id]:
+            causal_anvil = anvil
+            causal_anvil.tier = tier
+            self.write('''INSERT INTO JobsAnvils (CreatedBy, UpdatedBy, Id, Tier, Bronze, Gold) 
+                               VALUES (%s,%s,%s,%s,%s,%s)''',
+                       (causal_anvil.created_by, causal_anvil.updated_by, causal_anvil.id_,
+                        causal_anvil.tier, causal_anvil.bronze, causal_anvil.gold))
 
     def remove_anvil(self, id_, tier=None):
         if tier is None:
             self.write('''DELETE FROM JobsAnvils WHERE Id=%s''', id_)
         else:
             self.write('''DELETE FROM JobsAnvils WHERE Id=%s AND Tier=%s''', (id_, tier))
-            self.cascade_anvil_remove(id_, tier)
+            anvil_tier_id = JobAnvil.accepted_tiers.index(tier)
+            for causal_tier in JobAnvil.accepted_tiers[anvil_tier_id:]:
+                self.remove_anvil(id_, causal_tier)
 
     def update_anvil(self, anvil: JobAnvil):
         self.write('''UPDATE JobsAnvils 
@@ -213,26 +222,24 @@ class PersistentJobs(Persistent):
                 WHERE Id=%s AND Tier=%s''',
                    (anvil.updated_by, anvil.bronze, anvil.gold,
                     anvil.id_, anvil.tier))
-        self.cascade_anvil_update(anvil)
-
-    def cascade_anvil_add(self, anvil: JobAnvil):
-        PersistentJobs.cascade_anvil(anvil, self.add_anvil)
-
-    def cascade_anvil_remove(self, id_, tier):
-        anvil_tier_id = JobAnvil.accepted_tiers.index(tier)
-        for causal_tier in JobAnvil.accepted_tiers[anvil_tier_id:]:
-            self.remove_anvil(id_, causal_tier)
-
-    def cascade_anvil_update(self, anvil: JobAnvil):
-        PersistentJobs.cascade_anvil(anvil, self.update_anvil)
+        anvil_tier_id = JobAnvil.accepted_tiers.index(anvil.tier)
+        anvils = self.get_anvils(anvil.id_)
+        for tier_id in range(anvil_tier_id):
+            causal_anvil = anvil
+            causal_anvil.tier = JobAvil.accepted_tiers[tier_id]
+            if not anvil.gold:
+                causal_anvil.gold = PersistentJobs.find_anvils_gold(anvils, tier=causal_anvil.tier)
+            self.write('''INSERT INTO JobsAnvils (CreatedBy, UpdatedBy, Id, Tier, Bronze, Gold) 
+                                       VALUES (%s,%s,%s,%s,%s,%s)''',
+                       (causal_anvil.created_by, causal_anvil.updated_by, causal_anvil.id_,
+                        causal_anvil.tier, causal_anvil.bronze, causal_anvil.gold))
 
     @staticmethod
-    def cascade_anvil(anvil, func):
-        anvil_tier_id = JobAnvil.accepted_tiers.index(anvil.tier)
-        for tier in JobAnvil.accepted_tiers[:anvil_tier_id]:
-            causal_anvil = anvil
-            causal_anvil.tier = tier
-            func(causal_anvil)
+    def find_anvils_gold(anvils, tier):
+        for anvil in anvils:
+            if anvil.tier = tier:
+                return anvil.gold
+        return False
 
     def get_anvils(self, id_=None):
         if id_ is None:
