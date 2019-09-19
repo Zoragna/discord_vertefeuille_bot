@@ -49,7 +49,6 @@ class Bot(discord.Client):
             await Bot.not_understood(message)
             return
         tmp = self.mapping
-        func = Bot.empty_func
         kwargs = {}
         i = 0
         if words[0] == self.caller:
@@ -84,13 +83,16 @@ class Bot(discord.Client):
         print(words)
         print(kwargs)
         has_failed = True
+        error_msg = ""
         try:
             kwargs["is_admin"] = configurator.is_admin(message.author, message.guild.id)
             if func in need_admin and not kwargs["is_admin"]:
                 await Bot.unauthorized(message, **kwargs)
             else:
                 await func(message, words, **kwargs)
+            print("has failed")
             has_failed = False
+            print(has_failed)
         except (IndexError, CommandException) as e:
             await channel.send("Il semblerait que je ne puisse pas faire suivre votre requête !")
         except InitializationException as e:
@@ -98,11 +100,14 @@ class Bot(discord.Client):
         except lookup("25P02") as e:
             await channel.send("Une entrée existe déjà pour cet objet")
         except Exception as e:
+            error_msg = str(e)
             msg = "Erreur, l'administrateur et d'autres personnes ont été notifiées !"
             await message.channel.send(msg)
         if has_failed:
             msg = "[" + message.guild.name + "][ERROR]"
-            error_msg = msg + "\n" + traceback.format_exc() + "\ncaused by: '" + message.content + "'"
+            error_msg += msg + "\n" + traceback.format_exc() + "\n"
+            error_msg += "caused by: '" + message.content + "'"
+            error_msg += "from '"+message.author.name+"'"
             await configurator.warn_error(error_msg, message.guild.id)
 
     def map_input(self, query, section="", command=None, description=""):
@@ -122,6 +127,7 @@ class Bot(discord.Client):
             def wrapper_is_admin(*args, **kwargs):
                 return func(*args, **kwargs)
             self.need_admin.append(func)
+            return wrapper_is_admin
         return decorator_is_admin
 
     def process_query(self, query, func):

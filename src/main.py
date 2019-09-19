@@ -82,6 +82,8 @@ async def general_help(message, words, **kwargs):
             for title in client.help[entry]:
                 embed.add_field(name=title, value=client.help[entry][title], inline=False)
             await message.channel.send(embed=embed)
+        else:
+            await message.channel.send("")
     else:
         embed = discord.Embed(title="Commandes d'aide disponibles", color=0x37f23c)
         embed.add_field(name="Legolas aide twitter",
@@ -357,7 +359,9 @@ async def send_excel_sheets(message, words, **kwargs):
                   "Lister les valeurs acceptés pour certains champs")
 async def help_characters(message, words, **kwargs):
     embed = discord.Embed(title="**Valeurs acceptées pour certains champs de personnage**")
-    embed.add_field(name="Classes acceptées", value=", ".join(Characters.Character.accepted_classes), inline=False)
+    classes = Characters.Character.accepted_classes
+    val = ", ".join([class_.replace('_', ' ') for class_ in classes])
+    embed.add_field(name="Classes acceptées", value=val, inline=False)
     embed.add_field(name="Couleurs acceptées", value=", ".join(Characters.Character.accepted_colors), inline=False)
     await message.channel.send(embed=embed)
 
@@ -434,17 +438,17 @@ async def search_characters(message, words, **kwargs):
 @client.map_input("annuaire/métier/aide", "annuaire/métier",
                   "Legolas annuaire métier aide",
                   "Lister les valeurs acceptés pour certains champs")
-async def help_characters(message, words, **kwargs):
+async def help_jobs(message, words, **kwargs):
     embed = discord.Embed(title="**Valeurs acceptées pour certains champs de métier**")
-    embed.add_field(name="Métiers acceptés", value=",".join(Jobs.Job.accepted_jobs), inline=False)
-    embed.add_field(name="Tiers acceptés", value=",".join(Jobs.JobAnvil.accepted_tiers), inline=False)
+    embed.add_field(name="Métiers acceptés", value=", ".join(Jobs.Job.accepted_jobs), inline=False)
+    embed.add_field(name="Tiers acceptés", value=", ".join(Jobs.JobAnvil.accepted_tiers), inline=False)
     await message.channel.send(embed=embed)
 
 
 @client.map_input("annuaire/métier/list", "annuaire/métier",
                   "Legolas annuaire métier list",
                   "Lister les métiers présents dans l'annuaire")
-async def list_jobs(message:discord.Message, words, **kwargs):
+async def list_jobs(message: discord.Message, words, **kwargs):
     guild_id = message.guild.id
     channel = message.channel
     msg = "Pas de métiers enregistrés"
@@ -581,10 +585,15 @@ async def search_jobs(message, words, **kwargs):
 @client.map_input("annuaire/réputation/aide", "annuaire/réputation",
                   "Legolas annuaire réputation aide",
                   "Lister les valeurs acceptés pour certains champs")
-async def help_characters(message, words, **kwargs):
+async def help_reputations(message, words, **kwargs):
     embed = discord.Embed(title="**Valeurs acceptées pour certains champs de réputation**")
-    embed.add_field(name="Factions acceptées", value=",".join(Reputations.Reputation.accepted_factions), inline=False)
-    embed.add_field(name="Niveaux acceptés", value=",".join(Reputations.Reputation.accepted_levels), inline=False)
+    factions = Reputations.factions
+    step = 14
+    for i in range(0, len(factions), step):
+        val = ", ".join([faction.replace('_', ' ') for faction in factions[i:i + step]])
+        print(len(val))
+        embed.add_field(name="Factions acceptées (%d..%d)" % (i + 1, i + step), value=val, inline=False)
+    embed.add_field(name="Niveaux acceptés", value=", ".join(Reputations.Reputation.accepted_levels), inline=False)
     await message.channel.send(embed=embed)
 
 
