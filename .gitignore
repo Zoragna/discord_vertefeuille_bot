@@ -30,3 +30,9 @@ venv/
 *.rar
 *.tar
 *.zip
+
+#Temporary files
+*.swp
+
+#Secret files
+secret.txt*

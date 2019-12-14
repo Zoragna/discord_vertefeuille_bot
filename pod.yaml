@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: legolas
+  labels:
+    name: legolas
+    version: v1
+spec:
+  containers:
+    - image: legolas:1.0
+      name: legolas
+      env:
+        - name: "POSTGRES_PASSWORD"
+          value: "root"
+      volumeMounts:
+        - name: secret-volume
+          readOnly: true
+          mountPath: "/etc/credentials"
+  volumes:
+  - name: secret-volume
+    secret:
+      secretName: credentials
+
