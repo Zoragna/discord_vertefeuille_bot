@@ -7,7 +7,7 @@ metadata:
     version: v1
 spec:
   containers:
-    - image: eu.gcr.io/dogwood-mission-261918/legolas:1.0
+    - image: eu.gcr.io/dogwood-mission-261918/legolas:1.1
       name: legolas
       env:
         - name: "ENVIRONMENT"

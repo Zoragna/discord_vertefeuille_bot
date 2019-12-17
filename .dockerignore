@@ -1,0 +1,9 @@
+.git
+
+
+# Environment variables and configuration
+secret.txt*
+*.yaml
+
+#Temporary files
+*.swp
