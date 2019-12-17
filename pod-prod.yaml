@@ -7,11 +7,11 @@ metadata:
     version: v1
 spec:
   containers:
-    - image: legolas:1.0
+    - image: eu.gcr.io/dogwood-mission-261918/legolas:1.0
       name: legolas
       env:
-        - name: "POSTGRES_PASSWORD"
-          value: "root"
+        - name: "ENVIRONMENT"
+          value: "PROD"
       volumeMounts:
         - name: secret-volume
           readOnly: true
@@ -19,5 +19,6 @@ spec:
   volumes:
   - name: secret-volume
     secret:
-      secretName: credentials
+      secretName: credentials-prod
+
 

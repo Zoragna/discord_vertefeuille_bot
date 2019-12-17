@@ -23,16 +23,26 @@ logging.basicConfig()
 
 annuary_path = "lotro_annuaire.xlsx"
 
-DATABASE_URL = os.environ["DATABASE_URL"]
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 
-if "ENVIRONMENT" in os.environ and os.environ["ENVIRONMENT"] == "PROD":
-    connection = psycopg2.connect(DATABASE_URL, sslmode='require')
-    jobstores = {
-        'sqlalchemy': SQLAlchemyJobStore(url=DATABASE_URL)
-    }
-    logging.getLogger('apscheduler').setLevel(logging.DEBUG)
-else:
+connection = None
+if "ENVIRONMENT" in os.environ:
+    if os.environ["ENVIRONMENT"] == "PROD":
+        DATABASE_URL = os.environ["DATABASE_URL"]
+
+        connection = psycopg2.connect(DATABASE_URL, sslmode='require')
+        jobstores = {
+            'sqlalchemy': SQLAlchemyJobStore(url=DATABASE_URL)
+        }
+        logging.getLogger('apscheduler').setLevel(logging.DEBUG)
+    elif os.environ["ENVIRONMENT"] == "DOCKER_DEV":
+        connection = psycopg2.connect("postgres://host.docker.internal", user="postgres", password="root", database="lotro")
+        # postgresql+psycopg2://scott:tiger@localhost/mydatabase
+        # dialect+driver://username:password@host:port/database
+        jobstores = {
+            'sqlalchemy': SQLAlchemyJobStore(url="postgresql+psycopg2://postgres:root@host.docker.internal/lotro")
+        }
+if connection is None:
     connection = psycopg2.connect("postgres://localhost", user="postgres", password="root", database="lotro")
     # postgresql+psycopg2://scott:tiger@localhost/mydatabase
     # dialect+driver://username:password@host:port/database
@@ -399,6 +409,7 @@ async def process_characters(message, words, **kwargs):
         dic["createdBy"] = message.author.name
         dic["updatedBy"] = message.author.name
         dic["guildId"] = guild_id
+        dic["name"] = character_name
         character = Characters.Character.from_dict(dic)
         if action == "ajouter":
             try:

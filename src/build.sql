@@ -34,6 +34,16 @@ CREATE TABLE IF NOT EXISTS Allegiances (
         GuildId bigint NOT NULL,
         PRIMARY KEY("Name", Allegiance));
 
+CREATE TABLE IF NOT EXISTS Characters (
+        CreatedBy text NOT NULL,
+        UpdatedBy text NOT NULL,
+        GuildId bigint NOT NULL,
+        Class text NOT NULL,
+        "Level" SMALLINT,
+        MainTrait text NOT NULL,
+        "Name" varchar(100),
+        PRIMARY KEY ("Name"));
+
 CREATE TABLE IF NOT EXISTS Craftsmanship (
         CreatedBy text NOT NULL,
         UpdatedBy text NOT NULL,

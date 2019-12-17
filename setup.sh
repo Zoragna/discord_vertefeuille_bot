@@ -3,4 +3,4 @@
 . /etc/credentials/.secret.txt
 export $(cut -d= -f1 /etc/credentials/.secret.txt)
 
-printenv
+python3 src/main.py
