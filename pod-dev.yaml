@@ -7,7 +7,7 @@ metadata:
     version: v1
 spec:
   containers:
-    - image: legolas:1.0
+    - image: legolas:1.2
       name: legolas
       env:
         - name: "ENVIRONMENT"
